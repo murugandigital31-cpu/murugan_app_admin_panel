@@ -358,6 +358,37 @@
 
 </script>
 
+<!-- Core JavaScript Files -->
+<script src="{{asset('public/assets/admin')}}/js/vendor.min.js"></script>
+<script src="{{asset('public/assets/admin')}}/js/theme.min.js"></script>
+<script src="{{asset('public/assets/admin')}}/js/toastr.js"></script>
+
+<!-- Fix tooltip initialization issues -->
+<script>
+$(document).ready(function() {
+    // Initialize tooltips safely
+    try {
+        if (typeof $.fn.tooltip !== 'undefined') {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+    } catch (e) {
+        console.warn('Tooltip initialization failed:', e);
+    }
+    
+    // Initialize popovers safely
+    try {
+        if (typeof $.fn.popover !== 'undefined') {
+            $('[data-toggle="popover"]').popover();
+        }
+    } catch (e) {
+        console.warn('Popover initialization failed:', e);
+    }
+});
+</script>
+
+<!-- Custom scripts stack -->
+@stack('script_2')
+
 <!-- IE Support -->
 <script>
     if (/MSIE \d|Trident.*rv:/.test(navigator.userAgent)) document.write('<script src="{{asset('public/assets/admin')}}/vendor/babel-polyfill/polyfill.min.js"><\/script>');
