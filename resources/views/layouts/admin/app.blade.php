@@ -248,26 +248,29 @@
 </script>
 
 <script>
-    $(function(){
-        var owl = $('.single-item-slider');
-        owl.owlCarousel({
-            autoplay: false,
-            items:1,
-            onInitialized  : counter,
-            onTranslated : counter,
-            autoHeight: true,
-            dots: true,
-        });
+    $(document).ready(function(){
+        // Initialize OwlCarousel only if the element exists and owlCarousel is available
+        if ($('.single-item-slider').length > 0 && typeof $.fn.owlCarousel !== 'undefined') {
+            var owl = $('.single-item-slider');
+            owl.owlCarousel({
+                autoplay: false,
+                items:1,
+                onInitialized  : counter,
+                onTranslated : counter,
+                autoHeight: true,
+                dots: true,
+            });
 
-        function counter(event) {
-            var element   = event.target;         // DOM element, in this example .owl-carousel
-            var items     = event.item.count;     // Number of items
-            var item      = event.item.index + 1;     // Position of the current item
+            function counter(event) {
+                var element   = event.target;         // DOM element, in this example .owl-carousel
+                var items     = event.item.count;     // Number of items
+                var item      = event.item.index + 1;     // Position of the current item
 
-            if(item > items) {
-                item = item - items
+                if(item > items) {
+                    item = item - items
+                }
+                $('.slide-counter').html(+item+"/"+items)
             }
-            $('.slide-counter').html(+item+"/"+items)
         }
     });
 </script>
@@ -297,6 +300,7 @@
 
     @if($admin_order_notification_type == 'firebase')
     @php($fcm_credentials = \App\CentralLogics\Helpers::get_business_settings('firebase_message_config'))
+    @if(isset($fcm_credentials['projectId']) && !empty($fcm_credentials['projectId']))
     var firebaseConfig = {
         apiKey: "{{isset($fcm_credentials['apiKey']) ? $fcm_credentials['apiKey'] : ''}}",
         authDomain: "{{isset($fcm_credentials['authDomain']) ? $fcm_credentials['authDomain'] : ''}}",
@@ -307,9 +311,15 @@
         measurementId: "{{isset($fcm_credentials['measurementId']) ? $fcm_credentials['measurementId'] : ''}}"
     };
 
-
-    firebase.initializeApp(firebaseConfig);
-    const messaging = firebase.messaging();
+    try {
+        firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+    } catch (error) {
+        console.warn('Firebase initialization failed:', error);
+    }
+    @else
+    console.warn('Firebase configuration is incomplete. Please configure Firebase in admin settings.');
+    @endif
 
     function startFCM() {
         messaging

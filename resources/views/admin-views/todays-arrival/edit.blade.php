@@ -33,13 +33,25 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="branch_id">{{translate('Branch')}} 
+                                        <label class="input-label" for="branch_ids">{{translate('Branches')}} 
                                             <span class="input-label-secondary">*</span></label>
-                                        <select name="branch_id" class="form-control js-select2-custom" required>
-                                            <option value="">{{translate('Select Branch')}}</option>
+                                        
+                                        {{-- Debug info --}}
+                                        @if(config('app.debug'))
+                                        <small class="text-muted">
+                                            Debug - Stored branch_id: {{json_encode($arrival->branch_id)}} 
+                                            | Type: {{gettype($arrival->branch_id)}}
+                                        </small>
+                                        @endif
+                                        
+                                        <select name="branch_ids[]" class="form-control js-select2-custom" multiple required>
                                             @foreach($branches as $branch)
-                                                <option value="{{$branch['id']}}" 
-                                                    {{(old('branch_id', $arrival->branch_id) == $branch['id']) ? 'selected' : ''}}>
+                                                @php
+                                                    $selectedBranches = is_array($arrival->branch_id) ? $arrival->branch_id : 
+                                                                       (is_string($arrival->branch_id) ? json_decode($arrival->branch_id, true) : []);
+                                                    $isSelected = is_array($selectedBranches) && in_array($branch['id'], $selectedBranches);
+                                                @endphp
+                                                <option value="{{$branch['id']}}" {{$isSelected ? 'selected' : ''}}>
                                                     {{$branch['name']}} ({{$branch['whatsapp_number']}})
                                                 </option>
                                             @endforeach
@@ -48,13 +60,16 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="product_id">{{translate('Product')}} 
+                                        <label class="input-label" for="product_ids">{{translate('Products')}} 
                                             <span class="input-label-secondary">*</span></label>
-                                        <select name="product_id" class="form-control js-select2-custom" required>
-                                            <option value="">{{translate('Select Product')}}</option>
+                                        <select name="product_ids[]" class="form-control js-select2-custom" multiple required>
                                             @foreach($products as $product)
-                                                <option value="{{$product['id']}}" 
-                                                    {{(old('product_id', $arrival->product_id) == $product['id']) ? 'selected' : ''}}>
+                                                @php
+                                                    $selectedProducts = is_array($arrival->product_ids) ? $arrival->product_ids : 
+                                                                       (is_string($arrival->product_ids) ? json_decode($arrival->product_ids, true) : []);
+                                                    $isSelected = is_array($selectedProducts) && in_array($product['id'], $selectedProducts);
+                                                @endphp
+                                                <option value="{{$product['id']}}" {{$isSelected ? 'selected' : ''}}>
                                                     {{$product['name']}}
                                                 </option>
                                             @endforeach
@@ -63,10 +78,27 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="whatsapp_message_template">{{translate('WhatsApp Message Template')}}</label>
-                                        <textarea name="whatsapp_message_template" class="form-control" rows="3" 
-                                                  placeholder="{{ translate('Hi! I\'m interested in {product_name} from today\'s arrival. Is it available?') }}">{{old('whatsapp_message_template', $arrival->whatsapp_message_template ?? 'Hi! I\'m interested in {product_name} from today\'s arrival. Is it available?')}}</textarea>
-                                        <small class="text-muted">{{translate('Use {product_name} to include product name, {branch_name} for branch name')}}</small>
+                                        <label class="input-label" for="arrival_date">{{translate('Arrival Date')}} 
+                                            <span class="input-label-secondary">*</span></label>
+                                        <input type="date" name="arrival_date" value="{{old('arrival_date', $arrival->arrival_date ? $arrival->arrival_date->format('Y-m-d') : '')}}" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <label class="input-label" for="description">{{translate('Description')}}</label>
+                                        <textarea name="description" class="form-control" rows="3" 
+                                                  placeholder="{{ translate('Brief description about this arrival') }}">{{old('description', $arrival->description)}}</textarea>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="show_in_app" id="show_in_app" 
+                                                   {{old('show_in_app', $arrival->show_in_app) ? 'checked' : ''}}>
+                                            <label class="form-check-label" for="show_in_app">
+                                                {{translate('Show in App')}}
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -80,7 +112,8 @@
                                 <label class="upload--vertical">
                                     <input type="file" name="main_poster" id="mainPoster" class="" 
                                            accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
-                                    <img id="mainPosterViewer" src="{{$arrival->main_poster_url}}" 
+                                    <img id="mainPosterViewer" 
+                                         src="{{$arrival->main_poster ? asset('storage/app/public/arrivals/' . $arrival->main_poster) : asset('public/assets/admin/img/upload-vertical.png')}}" 
                                          alt="{{ translate('main poster image') }}"/>
                                 </label>
                             </div>
@@ -94,7 +127,7 @@
                                 @foreach($arrival->poster_images as $index => $image)
                                 <div class="col-md-2 mb-3" id="currentImage{{$index}}">
                                     <div class="position-relative">
-                                        <img src="{{asset('storage/app/public/todays-arrival/poster/' . $image)}}" 
+                                        <img src="{{asset('storage/app/public/arrivals/' . $image)}}" 
                                              class="img-fluid rounded" style="height: 100px; width: 100%; object-fit: cover;" 
                                              alt="{{translate('poster image')}}">
                                         <button type="button" class="btn btn-sm btn-danger position-absolute" 

@@ -38,12 +38,11 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="arrival_branch_id">{{translate('Branch')}} 
+                                        <label class="input-label" for="branch_ids">{{translate('Branches')}} 
                                             <span class="input-label-secondary">*</span></label>
-                                        <select name="arrival_branch_id" class="form-control js-select2-custom" required>
-                                            <option value="">{{translate('Select Branch')}}</option>
+                                        <select name="branch_ids[]" class="form-control js-select2-custom" multiple required>
                                             @foreach($branches as $branch)
-                                                <option value="{{$branch['id']}}" {{old('arrival_branch_id') == $branch['id'] ? 'selected' : ''}}>
+                                                <option value="{{$branch['id']}}" {{in_array($branch['id'], old('branch_ids', [])) ? 'selected' : ''}}>
                                                     {{$branch['name']}} ({{$branch['whatsapp_number']}})
                                                 </option>
                                             @endforeach
@@ -132,7 +131,7 @@
                                     <label class="upload--square">
                                         <input type="file" name="poster_images[]" class="poster-image-input" 
                                                accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
-                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-square.png')}}" 
+                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-vertical.png')}}" 
                                              alt="{{ translate('poster image') }}"/>
                                     </label>
                                 </div>
@@ -140,7 +139,7 @@
                                     <label class="upload--square">
                                         <input type="file" name="poster_images[]" class="poster-image-input" 
                                                accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
-                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-square.png')}}" 
+                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-vertical.png')}}" 
                                              alt="{{ translate('poster image') }}"/>
                                     </label>
                                 </div>
@@ -148,7 +147,7 @@
                                     <label class="upload--square">
                                         <input type="file" name="poster_images[]" class="poster-image-input" 
                                                accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
-                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-square.png')}}" 
+                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-vertical.png')}}" 
                                              alt="{{ translate('poster image') }}"/>
                                     </label>
                                 </div>
@@ -156,7 +155,7 @@
                                     <label class="upload--square">
                                         <input type="file" name="poster_images[]" class="poster-image-input" 
                                                accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
-                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-square.png')}}" 
+                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-vertical.png')}}" 
                                              alt="{{ translate('poster image') }}"/>
                                     </label>
                                 </div>
@@ -164,7 +163,7 @@
                                     <label class="upload--square">
                                         <input type="file" name="poster_images[]" class="poster-image-input" 
                                                accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
-                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-square.png')}}" 
+                                        <img class="poster-image-viewer" src="{{asset('public/assets/admin/img/upload-vertical.png')}}" 
                                              alt="{{ translate('poster image') }}"/>
                                     </label>
                                 </div>
@@ -225,7 +224,7 @@
                             <td>
                                 <div>
                                     <img class="img-vertical-150"
-                                         src="{{$arrival->main_poster_url}}"
+                                         src="{{$arrival->main_poster ? asset('storage/app/public/arrivals/' . $arrival->main_poster) : asset('public/assets/admin/img/no-image.jpg')}}"
                                          alt="{{ translate('main poster') }}"
                                     >
                                 </div>
@@ -242,7 +241,7 @@
                             </td>
                             <td>
                                 <span class="d-block font-size-sm text-body">
-                                    @if($arrival->products()->count() > 0)
+                                    @if($arrival->product_ids && count($arrival->product_ids) > 0)
                                         @foreach($arrival->products() as $product)
                                             <span class="badge badge-soft-primary">{{$product->name}}</span>
                                         @endforeach
@@ -253,20 +252,26 @@
                             </td>
                             <td>
                                 <span class="d-block font-size-sm text-body">
-                                    {{$arrival->arrivalBranch ? $arrival->arrivalBranch->name : translate('Branch not found')}}
+                                    @if($arrival->branch_id && count($arrival->branch_id) > 0)
+                                        @foreach($arrival->branches() as $branch)
+                                            <div>{{$branch->name}}</div>
+                                            <small class="text-muted">{{$branch->whatsapp_number}}</small>
+                                        @endforeach
+                                    @else
+                                        {{translate('No branches')}}
+                                    @endif
                                 </span>
-                                @if($arrival->arrivalBranch)
-                                    <small class="text-muted">{{$arrival->arrivalBranch->whatsapp_number}}</small>
-                                @endif
                             </td>
                             <td>
-                                @if($arrival->arrivalBranch && $arrival->whatsapp_enabled)
-                                    <a href="{{$arrival->arrivalBranch->whatsapp_link}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
-                                       target="_blank" class="btn btn-sm btn-outline-success">
-                                        <i class="tio-chat"></i> {{translate('Test')}}
-                                    </a>
+                                @if($arrival->branch_id && count($arrival->branch_id) > 0)
+                                    @foreach($arrival->branches() as $branch)
+                                        <a href="https://wa.me/{{$branch->whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
+                                           target="_blank" class="btn btn-sm btn-outline-success mb-1">
+                                            <i class="tio-chat"></i> {{$branch->name}}
+                                        </a>
+                                    @endforeach
                                 @else
-                                    <span class="text-muted">{{translate('Disabled')}}</span>
+                                    <span class="text-muted">{{translate('No branches')}}</span>
                                 @endif
                             </td>
                             <td>
@@ -274,9 +279,9 @@
                                     <input type="checkbox"
                                            class="toggle-switch-input status-change-alert" 
                                            id="arrivalCheckbox{{ $arrival->id }}"
-                                           data-route="{{ route('admin.todays-arrival.status', [$arrival->id, $arrival->status ? 0 : 1]) }}"
-                                           data-message="{{ $arrival->status? translate('you_want_to_disable_this_arrival'): translate('you_want_to_active_this_arrival') }}"
-                                        {{ $arrival->status ? 'checked' : '' }}>
+                                           data-route="{{ route('admin.todays-arrival.status', [$arrival->id, $arrival->is_active ? 0 : 1]) }}"
+                                           data-message="{{ $arrival->is_active ? translate('you_want_to_disable_this_arrival'): translate('you_want_to_active_this_arrival') }}"
+                                        {{ $arrival->is_active ? 'checked' : '' }}>
                                     <span class="toggle-switch-label mx-auto text">
                                         <span class="toggle-switch-indicator"></span>
                                     </span>

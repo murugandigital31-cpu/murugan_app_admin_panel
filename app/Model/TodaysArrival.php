@@ -16,6 +16,7 @@ class TodaysArrival extends Model
         'description',
         'arrival_date',
         'branch_id',
+        'main_poster',
         'poster_images',
         'product_ids',
         'is_active',

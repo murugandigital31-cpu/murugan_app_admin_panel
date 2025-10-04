@@ -344,8 +344,8 @@ class TodaysArrivalController extends Controller
             'description' => $arrival->description,
             'arrival_date' => $arrival->arrival_date->format('Y-m-d'),
             'arrival_date_formatted' => $arrival->arrival_date->format('M d, Y'),
-            'poster_images' => $arrival->formatted_poster_images,
-            'main_poster' => $arrival->main_poster ? $baseUrl . '/storage/' . $arrival->main_poster : null,
+            'poster_images' => $this->formatPosterImages($arrival->poster_images, $baseUrl),
+            'main_poster' => $this->formatMainPoster($arrival->main_poster, $baseUrl),
             'products_count' => count($arrival->product_ids ?? []),
             'branches_count' => count($branches),
             'branches' => $branches,
@@ -361,10 +361,29 @@ class TodaysArrivalController extends Controller
                 ->map(function($product) use ($baseUrl) {
                     $imageUrl = null;
                     if ($product->image) {
-                        if (filter_var($product->image, FILTER_VALIDATE_URL)) {
-                            $imageUrl = $product->image;
+                        // Handle both single image and array of images
+                        $imageData = $product->image;
+                        
+                        // If it's a JSON string, decode it
+                        if (is_string($imageData) && (strpos($imageData, '[') === 0 || strpos($imageData, '{') === 0)) {
+                            $imageData = json_decode($imageData, true);
+                        }
+                        
+                        // If it's an array, get the first image
+                        if (is_array($imageData) && count($imageData) > 0) {
+                            $imageName = $imageData[0];
+                        } else if (is_string($imageData)) {
+                            $imageName = $imageData;
                         } else {
-                            $imageUrl = $baseUrl . '/storage/product/' . $product->image;
+                            $imageName = null;
+                        }
+                        
+                        if ($imageName) {
+                            if (filter_var($imageName, FILTER_VALIDATE_URL)) {
+                                $imageUrl = $imageName;
+                            } else {
+                                $imageUrl = $baseUrl . '/storage/product/' . $imageName;
+                            }
                         }
                     }
                     
@@ -388,5 +407,57 @@ class TodaysArrivalController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Format main poster image URL
+     */
+    private function formatMainPoster($mainPoster, $baseUrl)
+    {
+        if (!$mainPoster) {
+            return null;
+        }
+
+        // Handle both single filename and array format
+        if (is_string($mainPoster) && (strpos($mainPoster, '[') === 0 || strpos($mainPoster, '{') === 0)) {
+            $decoded = json_decode($mainPoster, true);
+            if (is_array($decoded) && count($decoded) > 0) {
+                $mainPoster = $decoded[0];
+            }
+        } else if (is_array($mainPoster) && count($mainPoster) > 0) {
+            $mainPoster = $mainPoster[0];
+        }
+
+        if (filter_var($mainPoster, FILTER_VALIDATE_URL)) {
+            return $mainPoster;
+        }
+
+        return $baseUrl . '/storage/arrivals/' . $mainPoster;
+    }
+
+    /**
+     * Format poster images array
+     */
+    private function formatPosterImages($posterImages, $baseUrl)
+    {
+        if (!$posterImages) {
+            return [];
+        }
+
+        // Handle JSON string format
+        if (is_string($posterImages)) {
+            $posterImages = json_decode($posterImages, true);
+        }
+
+        if (!is_array($posterImages)) {
+            return [];
+        }
+
+        return array_map(function($image) use ($baseUrl) {
+            if (filter_var($image, FILTER_VALIDATE_URL)) {
+                return $image;
+            }
+            return $baseUrl . '/storage/arrivals/' . $image;
+        }, $posterImages);
     }
 }
