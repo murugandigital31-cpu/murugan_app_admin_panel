@@ -16,17 +16,14 @@ class TodaysArrivalController extends Controller
     {
         $search = $request->get('search');
         
-        $arrivals = TodaysArrival::with(['product', 'branch'])
+        $arrivals = TodaysArrival::with(['arrivalBranch'])
             ->when($search, function($query, $search) {
-                return $query->where('title', 'like', "%{$search}%")
-                            ->orWhereHas('product', function($q) use ($search) {
-                                $q->where('name', 'like', "%{$search}%");
-                            });
+                return $query->where('title', 'like', "%{$search}%");
             })
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        $branches = TodaysArrivalBranch::where('status', 1)->get();
+        $branches = TodaysArrivalBranch::where('is_active', 1)->get();
         $products = Product::where('status', 1)->get();
         
         return view('admin-views.todays-arrival.index', compact('arrivals', 'branches', 'products', 'search'));
@@ -36,12 +33,15 @@ class TodaysArrivalController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
-            'branch_id' => 'required|exists:todays_arrival_branches,id',
-            'product_id' => 'required|exists:products,id',
+            'description' => 'nullable|string|max:1000',
+            'arrival_branch_id' => 'required|exists:todays_arrival_branches,id',
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id',
             'main_poster' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
             'poster_images' => 'nullable|array|max:5',
             'poster_images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             'whatsapp_message_template' => 'nullable|string|max:1000',
+            'arrival_date' => 'required|date',
         ]);
 
         if ($validator->fails()) {
@@ -67,11 +67,17 @@ class TodaysArrivalController extends Controller
 
         TodaysArrival::create([
             'title' => $request->title,
-            'branch_id' => $request->branch_id,
-            'product_id' => $request->product_id,
+            'description' => $request->description,
+            'arrival_branch_id' => $request->arrival_branch_id,
+            'product_ids' => $request->product_ids,
+            'arrival_date' => $request->arrival_date,
             'main_poster' => $mainPoster,
-            'poster_images' => json_encode($posterImages),
-            'whatsapp_message_template' => $request->whatsapp_message_template ?? 'Hi! I\'m interested in {product_name} from today\'s arrival. Is it available?',
+            'poster_images' => $posterImages,
+            'whatsapp_message_template' => $request->whatsapp_message_template ?? 'Hi! I\'m interested in {title} from today\'s arrival. Is it available?',
+            'whatsapp_enabled' => $request->has('whatsapp_enabled'),
+            'is_active' => true,
+            'show_in_app' => $request->has('show_in_app'),
+            'sort_order' => $request->sort_order ?? 0,
             'status' => 1,
         ]);
 

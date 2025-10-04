@@ -31,12 +31,19 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="branch_id">{{translate('Branch')}} 
+                                        <label class="input-label" for="description">{{translate('Description')}}</label>
+                                        <textarea name="description" class="form-control" rows="3" 
+                                                  placeholder="{{ translate('Brief description about this arrival') }}">{{old('description')}}</textarea>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <label class="input-label" for="arrival_branch_id">{{translate('Branch')}} 
                                             <span class="input-label-secondary">*</span></label>
-                                        <select name="branch_id" class="form-control js-select2-custom" required>
+                                        <select name="arrival_branch_id" class="form-control js-select2-custom" required>
                                             <option value="">{{translate('Select Branch')}}</option>
                                             @foreach($branches as $branch)
-                                                <option value="{{$branch['id']}}" {{old('branch_id') == $branch['id'] ? 'selected' : ''}}>
+                                                <option value="{{$branch['id']}}" {{old('arrival_branch_id') == $branch['id'] ? 'selected' : ''}}>
                                                     {{$branch['name']}} ({{$branch['whatsapp_number']}})
                                                 </option>
                                             @endforeach
@@ -45,16 +52,23 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="product_id">{{translate('Product')}} 
+                                        <label class="input-label" for="product_ids">{{translate('Products')}} 
                                             <span class="input-label-secondary">*</span></label>
-                                        <select name="product_id" class="form-control js-select2-custom" required>
-                                            <option value="">{{translate('Select Product')}}</option>
+                                        <select name="product_ids[]" class="form-control js-select2-custom" multiple required>
                                             @foreach($products as $product)
-                                                <option value="{{$product['id']}}" {{old('product_id') == $product['id'] ? 'selected' : ''}}>
+                                                <option value="{{$product['id']}}" {{in_array($product['id'], old('product_ids', [])) ? 'selected' : ''}}>
                                                     {{$product['name']}}
                                                 </option>
                                             @endforeach
                                         </select>
+                                        <small class="text-muted">{{translate('Select multiple products for this arrival')}}</small>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <label class="input-label" for="arrival_date">{{translate('Arrival Date')}} 
+                                            <span class="input-label-secondary">*</span></label>
+                                        <input type="date" name="arrival_date" value="{{old('arrival_date', date('Y-m-d'))}}" class="form-control" required>
                                     </div>
                                 </div>
                                 <div class="col-12">
@@ -63,6 +77,32 @@
                                         <textarea name="whatsapp_message_template" class="form-control" rows="3" 
                                                   placeholder="{{ translate('Hi! I\'m interested in {product_name} from today\'s arrival. Is it available?') }}">{{old('whatsapp_message_template', 'Hi! I\'m interested in {product_name} from today\'s arrival. Is it available?')}}</textarea>
                                         <small class="text-muted">{{translate('Use {product_name} to include product name, {branch_name} for branch name')}}</small>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="form-group mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="whatsapp_enabled" id="whatsapp_enabled" 
+                                                           {{old('whatsapp_enabled') ? 'checked' : ''}}>
+                                                    <label class="form-check-label" for="whatsapp_enabled">
+                                                        {{translate('Enable WhatsApp')}}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-group mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="show_in_app" id="show_in_app" 
+                                                           {{old('show_in_app', true) ? 'checked' : ''}}>
+                                                    <label class="form-check-label" for="show_in_app">
+                                                        {{translate('Show in App')}}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -202,25 +242,31 @@
                             </td>
                             <td>
                                 <span class="d-block font-size-sm text-body">
-                                    {{$arrival->product ? $arrival->product->name : translate('Product not found')}}
+                                    @if($arrival->products()->count() > 0)
+                                        @foreach($arrival->products() as $product)
+                                            <span class="badge badge-soft-primary">{{$product->name}}</span>
+                                        @endforeach
+                                    @else
+                                        {{translate('No products')}}
+                                    @endif
                                 </span>
                             </td>
                             <td>
                                 <span class="d-block font-size-sm text-body">
-                                    {{$arrival->branch ? $arrival->branch->name : translate('Branch not found')}}
+                                    {{$arrival->arrivalBranch ? $arrival->arrivalBranch->name : translate('Branch not found')}}
                                 </span>
-                                @if($arrival->branch)
-                                    <small class="text-muted">{{$arrival->branch->whatsapp_number}}</small>
+                                @if($arrival->arrivalBranch)
+                                    <small class="text-muted">{{$arrival->arrivalBranch->whatsapp_number}}</small>
                                 @endif
                             </td>
                             <td>
-                                @if($arrival->branch)
-                                    <a href="https://wa.me/{{$arrival->branch->formatted_whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
+                                @if($arrival->arrivalBranch && $arrival->whatsapp_enabled)
+                                    <a href="{{$arrival->arrivalBranch->whatsapp_link}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
                                        target="_blank" class="btn btn-sm btn-outline-success">
                                         <i class="tio-chat"></i> {{translate('Test')}}
                                     </a>
                                 @else
-                                    <span class="text-muted">{{translate('No branch')}}</span>
+                                    <span class="text-muted">{{translate('Disabled')}}</span>
                                 @endif
                             </td>
                             <td>

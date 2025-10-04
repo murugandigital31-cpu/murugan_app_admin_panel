@@ -124,8 +124,8 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::delete('delete/{id}', [TodaysArrivalBranchController::class, 'delete'])->name('delete');
         });
 
-        // Today's Arrival Management
-        Route::group(['prefix' => 'todays-arrival', 'as' => 'todays-arrival.','middleware'=>['module:promotion_management']], function () {
+        // Today's Arrival Management - Temporarily removed middleware for testing
+        Route::group(['prefix' => 'todays-arrival', 'as' => 'todays-arrival.'], function () {
             Route::get('add-new', [TodaysArrivalController::class, 'index'])->name('add-new');
             Route::post('store', [TodaysArrivalController::class, 'store'])->name('store');
             Route::get('edit/{id}', [TodaysArrivalController::class, 'edit'])->name('edit');
