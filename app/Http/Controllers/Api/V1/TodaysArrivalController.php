@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\TodaysArrival;
-use App\Models\TodaysArrivalBranch;
-use App\Models\Product;
+use App\Model\TodaysArrival;
+use App\Model\TodaysArrivalBranch;
+use App\Model\Product;
+use App\Model\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,31 +18,45 @@ class TodaysArrivalController extends Controller
     public function index(Request $request)
     {
         try {
-            $branchId = $request->header('branch-id') ?? $request->branch_id;
-            $date = $request->date ?? today()->format('Y-m-d');
+            $limit = $request->get('limit', 10);
+            $offset = $request->get('offset', 0);
+            $branchId = $request->get('branch_id');
+            $date = $request->get('date', today()->format('Y-m-d'));
             
-            $arrivals = TodaysArrival::with(['arrivalBranch', 'products'])
-                ->active()
+            $query = TodaysArrival::active()
                 ->appVisible()
-                ->forDate($date)
-                ->when($branchId, function($query, $branchId) {
-                    return $query->forBranch($branchId);
-                })
-                ->orderBy('sort_order')
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function($arrival) {
-                    return $this->formatArrivalData($arrival);
-                });
-
+                ->forDate($date);
+            
+            // Filter by branch if provided
+            if ($branchId) {
+                $query->forBranch($branchId);
+            }
+            
+            $totalCount = $query->count();
+            
+            $arrivals = $query->orderBy('sort_order')
+                             ->orderBy('created_at', 'desc')
+                             ->skip($offset)
+                             ->take($limit)
+                             ->get();
+            
+            // Transform data for mobile app
+            $formattedArrivals = $arrivals->map(function($arrival) {
+                return $this->formatArrivalData($arrival);
+            });
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Today\'s arrivals retrieved successfully',
-                'data' => $arrivals,
-                'total' => $arrivals->count(),
-                'date' => $date,
-            ]);
-
+                'data' => [
+                    'arrivals' => $formattedArrivals,
+                    'total_count' => $totalCount,
+                    'limit' => (int) $limit,
+                    'offset' => (int) $offset,
+                    'date' => $date,
+                ]
+            ], 200);
+            
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -57,15 +72,27 @@ class TodaysArrivalController extends Controller
     public function show(Request $request, $id)
     {
         try {
-            $branchId = $request->header('branch-id') ?? $request->branch_id;
+            $branchId = $request->get('branch_id');
             
-            $arrival = TodaysArrival::with(['arrivalBranch', 'products'])
-                ->active()
+            $arrival = TodaysArrival::active()
                 ->appVisible()
-                ->when($branchId, function($query, $branchId) {
-                    return $query->forBranch($branchId);
-                })
-                ->findOrFail($id);
+                ->where('id', $id)
+                ->first();
+            
+            if (!$arrival) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Arrival not found or not available'
+                ], 404);
+            }
+            
+            // Check if arrival is available for the requested branch
+            if ($branchId && $arrival->branch_id && !in_array($branchId, $arrival->branch_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Arrival not available for this branch'
+                ], 404);
+            }
 
             return response()->json([
                 'success' => true,
@@ -76,9 +103,9 @@ class TodaysArrivalController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Arrival not found or not available',
+                'message' => 'Failed to retrieve arrival details',
                 'error' => $e->getMessage()
-            ], 404);
+            ], 500);
         }
     }
 
@@ -88,18 +115,19 @@ class TodaysArrivalController extends Controller
     public function getByDateRange(Request $request)
     {
         try {
-            $startDate = $request->start_date ?? today()->format('Y-m-d');
-            $endDate = $request->end_date ?? today()->addDays(7)->format('Y-m-d');
-            $branchId = $request->header('branch-id') ?? $request->branch_id;
+            $startDate = $request->get('start_date', today()->format('Y-m-d'));
+            $endDate = $request->get('end_date', today()->addDays(7)->format('Y-m-d'));
+            $branchId = $request->get('branch_id');
 
-            $arrivals = TodaysArrival::with(['arrivalBranch', 'products'])
-                ->active()
+            $query = TodaysArrival::active()
                 ->appVisible()
-                ->whereBetween('arrival_date', [$startDate, $endDate])
-                ->when($branchId, function($query, $branchId) {
-                    return $query->forBranch($branchId);
-                })
-                ->orderBy('arrival_date')
+                ->whereBetween('arrival_date', [$startDate, $endDate]);
+            
+            if ($branchId) {
+                $query->forBranch($branchId);
+            }
+
+            $arrivals = $query->orderBy('arrival_date')
                 ->orderBy('sort_order')
                 ->get()
                 ->groupBy(function($arrival) {
@@ -108,9 +136,10 @@ class TodaysArrivalController extends Controller
                 ->map(function($arrivals, $date) {
                     return [
                         'date' => $date,
+                        'date_formatted' => \Carbon\Carbon::parse($date)->format('M d, Y'),
                         'arrivals' => $arrivals->map(function($arrival) {
                             return $this->formatArrivalData($arrival);
-                        })
+                        })->values()
                     ];
                 })
                 ->values();
@@ -118,10 +147,12 @@ class TodaysArrivalController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Arrivals retrieved successfully',
-                'data' => $arrivals,
-                'date_range' => [
-                    'start_date' => $startDate,
-                    'end_date' => $endDate
+                'data' => [
+                    'arrivals_by_date' => $arrivals,
+                    'date_range' => [
+                        'start_date' => $startDate,
+                        'end_date' => $endDate
+                    ]
                 ]
             ]);
 
@@ -140,19 +171,27 @@ class TodaysArrivalController extends Controller
     public function branches()
     {
         try {
-            $branches = TodaysArrivalBranch::active()
-                ->withArrivals()
+            // Get all active branches that have today's arrivals
+            $branchIds = TodaysArrival::active()
+                ->appVisible()
+                ->whereNotNull('branch_id')
+                ->pluck('branch_id')
+                ->flatten()
+                ->unique()
+                ->filter()
+                ->values();
+
+            $branches = Branch::whereIn('id', $branchIds)
                 ->get()
                 ->map(function ($branch) {
                     return [
                         'id' => $branch->id,
                         'name' => $branch->name,
-                        'location' => $branch->location,
-                        'whatsapp_number' => $branch->formatted_whatsapp,
-                        'whatsapp_link' => $branch->whatsapp_link,
-                        'contact_person' => $branch->contact_person,
+                        'phone' => $branch->phone,
+                        'whatsapp_number' => $branch->whatsapp_number,
                         'address' => $branch->address,
-                        'arrivals_count' => $branch->todaysArrivals->count(),
+                        'latitude' => $branch->latitude ?? null,
+                        'longitude' => $branch->longitude ?? null,
                     ];
                 });
 
@@ -178,20 +217,44 @@ class TodaysArrivalController extends Controller
     public function whatsappCheckout(Request $request, $id)
     {
         try {
-            $arrival = TodaysArrival::with('arrivalBranch')
-                ->active()
-                ->whatsappEnabled()
-                ->findOrFail($id);
+            $arrival = TodaysArrival::active()
+                ->appVisible()
+                ->where('id', $id)
+                ->first();
+            
+            if (!$arrival) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Arrival not found'
+                ], 404);
+            }
 
-            $products = $request->input('products', []); // Array of product IDs with quantities
+            $branchId = $request->input('branch_id');
+            $selectedProducts = $request->input('products', []); // Array of product IDs with quantities
             $customerName = $request->input('customer_name', '');
             $customerPhone = $request->input('customer_phone', '');
             $notes = $request->input('notes', '');
 
+            // Get branch details
+            $branch = null;
+            if ($branchId && $arrival->branch_id && in_array($branchId, $arrival->branch_id)) {
+                $branch = Branch::find($branchId);
+            } else if ($arrival->branch_id && count($arrival->branch_id) > 0) {
+                // Use first branch if no specific branch requested
+                $branch = Branch::find($arrival->branch_id[0]);
+            }
+
+            if (!$branch) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No branch available for this arrival'
+                ], 404);
+            }
+
             // Build custom message for checkout
             $message = "🛒 *New Order from Today's Arrival*\n\n";
-            $message .= "📅 *Arrival:* {$arrival->title}\n";
-            $message .= "📍 *Branch:* {$arrival->arrivalBranch->name}\n";
+            $message .= "� *Arrival:* {$arrival->title}\n";
+            $message .= "📍 *Branch:* {$branch->name}\n";
             $message .= "📆 *Date:* " . $arrival->arrival_date->format('d/m/Y') . "\n\n";
 
             if ($customerName) {
@@ -201,13 +264,15 @@ class TodaysArrivalController extends Controller
                 $message .= "📱 *Phone:* {$customerPhone}\n";
             }
 
-            if (!empty($products)) {
-                $message .= "\n🛍️ *Ordered Items:*\n";
-                $productIds = array_column($products, 'id');
-                $arrivalProducts = Product::whereIn('id', $productIds)->get();
+            if (!empty($selectedProducts) && $arrival->product_ids) {
+                $message .= "\n🛍️ *Interested Products:*\n";
+                $productIds = array_column($selectedProducts, 'id');
+                $availableProducts = Product::whereIn('id', $productIds)
+                    ->whereIn('id', $arrival->product_ids)
+                    ->get();
                 
-                foreach ($products as $productData) {
-                    $product = $arrivalProducts->firstWhere('id', $productData['id']);
+                foreach ($selectedProducts as $productData) {
+                    $product = $availableProducts->firstWhere('id', $productData['id']);
                     if ($product) {
                         $quantity = $productData['quantity'] ?? 1;
                         $message .= "• {$product->name} x {$quantity}\n";
@@ -219,20 +284,23 @@ class TodaysArrivalController extends Controller
                 $message .= "\n📝 *Notes:* {$notes}\n";
             }
 
-            $message .= "\n✅ Please confirm availability and total price.";
+            $message .= "\n✅ Please confirm availability and pricing.";
 
-            $whatsappUrl = $arrival->arrivalBranch->whatsapp_link . '?text=' . urlencode($message);
+            // Create WhatsApp URL
+            $whatsappNumber = $branch->whatsapp_number ?? $branch->phone;
+            $whatsappUrl = "https://wa.me/{$whatsappNumber}?text=" . urlencode($message);
 
             return response()->json([
                 'success' => true,
                 'whatsapp_url' => $whatsappUrl,
-                'message' => $message,
+                'message_preview' => $message,
                 'branch' => [
-                    'name' => $arrival->arrivalBranch->name,
-                    'whatsapp_number' => $arrival->arrivalBranch->formatted_whatsapp,
-                    'contact_person' => $arrival->arrivalBranch->contact_person,
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'whatsapp_number' => $whatsappNumber,
+                    'address' => $branch->address,
                 ],
-                'message_text' => 'WhatsApp checkout URL generated successfully'
+                'message' => 'WhatsApp checkout URL generated successfully'
             ]);
 
         } catch (\Exception $e) {
@@ -251,51 +319,68 @@ class TodaysArrivalController extends Controller
     {
         $baseUrl = config('app.url');
         
+        // Get branches for this arrival
+        $branches = [];
+        if ($arrival->branch_id) {
+            $branches = Branch::whereIn('id', $arrival->branch_id)
+                ->get()
+                ->map(function($branch) {
+                    return [
+                        'id' => $branch->id,
+                        'name' => $branch->name,
+                        'phone' => $branch->phone,
+                        'whatsapp_number' => $branch->whatsapp_number,
+                        'address' => $branch->address,
+                        'latitude' => $branch->latitude ?? null,
+                        'longitude' => $branch->longitude ?? null,
+                    ];
+                })
+                ->toArray();
+        }
+        
         $data = [
             'id' => $arrival->id,
             'title' => $arrival->title,
             'description' => $arrival->description,
             'arrival_date' => $arrival->arrival_date->format('Y-m-d'),
             'arrival_date_formatted' => $arrival->arrival_date->format('M d, Y'),
+            'poster_images' => $arrival->formatted_poster_images,
             'main_poster' => $arrival->main_poster ? $baseUrl . '/storage/' . $arrival->main_poster : null,
-            'poster_images' => $arrival->poster_images ? array_map(function($image) use ($baseUrl) {
-                return $baseUrl . '/storage/' . $image;
-            }, $arrival->poster_images) : [],
             'products_count' => count($arrival->product_ids ?? []),
-            'whatsapp_enabled' => $arrival->whatsapp_enabled,
+            'branches_count' => count($branches),
+            'branches' => $branches,
             'whatsapp_message' => $arrival->formatted_whatsapp_message,
-            'branch' => [
-                'id' => $arrival->arrivalBranch->id,
-                'name' => $arrival->arrivalBranch->name,
-                'location' => $arrival->arrivalBranch->location,
-                'whatsapp_number' => $arrival->arrivalBranch->formatted_whatsapp,
-                'whatsapp_link' => $arrival->arrivalBranch->whatsapp_link,
-                'contact_person' => $arrival->arrivalBranch->contact_person,
-                'address' => $arrival->arrivalBranch->address,
-            ],
             'sort_order' => $arrival->sort_order,
             'created_at' => $arrival->created_at->toISOString(),
+            'updated_at' => $arrival->updated_at->toISOString(),
         ];
 
         if ($includeProducts && $arrival->product_ids) {
             $products = Product::whereIn('id', $arrival->product_ids)
-                ->with(['category'])
                 ->get()
                 ->map(function($product) use ($baseUrl) {
+                    $imageUrl = null;
+                    if ($product->image) {
+                        if (filter_var($product->image, FILTER_VALIDATE_URL)) {
+                            $imageUrl = $product->image;
+                        } else {
+                            $imageUrl = $baseUrl . '/storage/product/' . $product->image;
+                        }
+                    }
+                    
                     return [
                         'id' => $product->id,
                         'name' => $product->name,
                         'description' => $product->description ?? '',
                         'price' => (float) $product->price,
                         'discount_price' => $product->discount_price ? (float) $product->discount_price : null,
-                        'image' => $product->image ? $baseUrl . '/storage/product/' . $product->image : null,
-                        'category' => $product->category ? $product->category->name : null,
-                        'rating' => (float) ($product->rating ?? 0),
+                        'image' => $imageUrl,
                         'unit' => $product->unit ?? 'pc',
-                        'weight' => $product->weight ?? '',
-                        'capacity' => $product->capacity ?? '',
-                        'in_stock' => ($product->current_stock ?? 0) > 0,
-                        'stock_quantity' => (int) ($product->current_stock ?? 0),
+                        'tax' => (float) ($product->tax ?? 0),
+                        'available_time_starts' => $product->available_time_starts ?? null,
+                        'available_time_ends' => $product->available_time_ends ?? null,
+                        'status' => (int) ($product->status ?? 1),
+                        'created_at' => $product->created_at->toISOString(),
                     ];
                 });
             

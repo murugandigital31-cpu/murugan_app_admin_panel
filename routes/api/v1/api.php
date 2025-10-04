@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\TimeSlotController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\TodaysArrivalController;
 use App\Http\Controllers\Api\V1\Auth\CustomerAuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Auth\DeliveryManLoginController;
@@ -80,6 +81,14 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
         Route::get('trending', [ProductController::class, 'getTrendingProducts']);
         Route::get('recommended', [ProductController::class, 'getRecommendedProducts']);
         Route::get('most-reviewed', [ProductController::class, 'getMostReviewedProducts']);
+    });
+
+    Route::group(['prefix' => 'todays-arrivals'], function () {
+        Route::get('/', [TodaysArrivalController::class, 'index']);
+        Route::get('/{id}', [TodaysArrivalController::class, 'show']);
+        Route::get('/date-range', [TodaysArrivalController::class, 'getByDateRange']);
+        Route::get('/branches', [TodaysArrivalController::class, 'branches']);
+        Route::post('/{id}/whatsapp-checkout', [TodaysArrivalController::class, 'whatsappCheckout']);
     });
 
     Route::group(['prefix' => 'banners'], function () {
