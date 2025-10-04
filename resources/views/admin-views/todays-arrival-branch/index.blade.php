@@ -131,9 +131,9 @@
                                     <input type="checkbox"
                                            class="toggle-switch-input status-change-alert" 
                                            id="branchCheckbox{{ $branch->id }}"
-                                           data-route="{{ route('admin.todays-arrival-branch.status', [$branch->id, $branch->status ? 0 : 1]) }}"
-                                           data-message="{{ $branch->status? translate('you_want_to_disable_this_branch'): translate('you_want_to_active_this_branch') }}"
-                                        {{ $branch->status ? 'checked' : '' }}>
+                                           data-route="{{ route('admin.todays-arrival-branch.status', [$branch->id, $branch->is_active ? 0 : 1]) }}"
+                                           data-message="{{ $branch->is_active? translate('you_want_to_disable_this_branch'): translate('you_want_to_active_this_branch') }}"
+                                        {{ $branch->is_active ? 'checked' : '' }}>
                                     <span class="toggle-switch-label mx-auto text">
                                         <span class="toggle-switch-indicator"></span>
                                     </span>
@@ -183,7 +183,7 @@
             $('.status-change-alert').on('change', function () {
                 let route = $(this).data('route');
                 let message = $(this).data('message');
-                status_change_alert(route, message, event);
+                status_change_alert(route, message, this);
             });
 
             $('.form-alert').on('click', function () {
@@ -192,5 +192,52 @@
                 form_alert(id, message);
             });
         });
+
+        function status_change_alert(route, message, element) {
+            Swal.fire({
+                title: '{{translate("Are you sure?")}}',
+                text: message,
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#377dff',
+                cancelButtonText: '{{translate("No")}}',
+                confirmButtonText: '{{translate("Yes")}}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    // Show loading
+                    Swal.fire({
+                        title: '{{translate("Please wait...")}}',
+                        allowEscapeKey: false,
+                        allowOutsideClick: false,
+                        onOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Make AJAX request
+                    $.ajax({
+                        url: route,
+                        method: 'GET',
+                        success: function(data) {
+                            toastr.success('{{translate("Status updated successfully")}}');
+                            location.reload();
+                        },
+                        error: function(xhr, status, error) {
+                            // Revert toggle state
+                            $(element).prop('checked', !$(element).prop('checked'));
+                            toastr.error('{{translate("Failed to update status")}}');
+                        },
+                        complete: function() {
+                            Swal.close();
+                        }
+                    });
+                } else {
+                    // Revert toggle state if cancelled
+                    $(element).prop('checked', !$(element).prop('checked'));
+                }
+            });
+        }
     </script>
 @endpush

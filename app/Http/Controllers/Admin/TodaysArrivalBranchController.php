@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\TodaysArrivalBranch;
+use App\Model\TodaysArrivalBranch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -42,7 +42,7 @@ class TodaysArrivalBranchController extends Controller
 
         // Format WhatsApp number
         $validated['whatsapp_number'] = $this->formatWhatsappNumber($validated['whatsapp_number']);
-        $validated['status'] = 1; // Active by default
+        $validated['is_active'] = 1; // Active by default
 
         TodaysArrivalBranch::create($validated);
 
@@ -107,7 +107,7 @@ class TodaysArrivalBranchController extends Controller
     public function status($id, $status)
     {
         $branch = TodaysArrivalBranch::findOrFail($id);
-        $branch->update(['status' => $status]);
+        $branch->update(['is_active' => $status]);
 
         $statusText = $status ? translate('activated') : translate('deactivated');
         return redirect()->back()
