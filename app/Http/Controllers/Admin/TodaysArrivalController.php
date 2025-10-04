@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TodaysArrival;
-use App\Models\TodaysArrivalBranch;
-use App\Models\Product;
+use App\Model\TodaysArrivalBranch;
+use App\Model\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
