@@ -62,9 +62,22 @@ class TodaysArrival extends Model
     public function getMainPosterUrlAttribute()
     {
         if ($this->main_poster) {
-            return asset('storage/' . $this->main_poster);
+            // Check if file exists in public uploads directory (new path)
+            if (file_exists(public_path('uploads/arrivals/' . $this->main_poster))) {
+                return asset('uploads/arrivals/' . $this->main_poster);
+            }
+            
+            // Check if storage is linked properly
+            if (file_exists(public_path('storage/arrivals/' . $this->main_poster))) {
+                return asset('storage/arrivals/' . $this->main_poster);
+            }
+            
+            // Fallback to direct storage access
+            if (file_exists(storage_path('app/public/arrivals/' . $this->main_poster))) {
+                return asset('storage/app/public/arrivals/' . $this->main_poster);
+            }
         }
-        return null;
+        return asset('public/assets/admin/img/no-image.jpg');
     }
 
     /**
@@ -77,7 +90,22 @@ class TodaysArrival extends Model
         }
         
         return array_map(function($image) {
-            return asset('storage/' . $image);
+            // Check if file exists in public uploads directory (new path)
+            if (file_exists(public_path('uploads/arrivals/' . $image))) {
+                return asset('uploads/arrivals/' . $image);
+            }
+            
+            // Check if storage is linked properly
+            if (file_exists(public_path('storage/arrivals/' . $image))) {
+                return asset('storage/arrivals/' . $image);
+            }
+            
+            // Fallback to direct storage access
+            if (file_exists(storage_path('app/public/arrivals/' . $image))) {
+                return asset('storage/app/public/arrivals/' . $image);
+            }
+            
+            return asset('public/assets/admin/img/no-image.jpg');
         }, $this->poster_images);
     }
 

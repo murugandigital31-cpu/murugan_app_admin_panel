@@ -2786,4 +2786,6 @@
   'Enabling Facebook Login, customers can log in to the site using their existing Facebook credentials.' => 'Enabling Facebook Login  customers can log in to the site using their existing Facebook credentials.',
   'With Social Login, customers can log in using social media credentials. while new customers can create accounts instantly.' => 'With Social Login  customers can log in using social media credentials. while new customers can create accounts instantly.',
   'Please active at lest one social media login option between google or facebook.' => 'Please active at lest one social media login option between google or facebook.',
+  'Today\'s Arrival Branches' => 'Today\'s Arrival Branches',
+  'Today\'s Arrival' => 'Today\'s Arrival',
 );

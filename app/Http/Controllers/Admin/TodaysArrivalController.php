@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Model\TodaysArrival;
-use App\Model\Branch;
+use App\Models\TodaysArrival;
+use App\Model\TodaysArrivalBranch;
 use App\Model\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +22,14 @@ class TodaysArrivalController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        $branches = Branch::where('status', 1)->get();
+        // Get Today's Arrival Branches (from todays_arrival_branches table)
+        $branches = TodaysArrivalBranch::where('is_active', true)->get();
+        
+        // If no active branches, get all branches for testing
+        if ($branches->isEmpty()) {
+            $branches = TodaysArrivalBranch::all();
+        }
+        
         $products = Product::where('status', 1)->get();
         
         return view('admin-views.todays-arrival.index', compact('arrivals', 'branches', 'products', 'search'));
@@ -33,8 +40,7 @@ class TodaysArrivalController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'branch_ids' => 'required|array',
-            'branch_ids.*' => 'exists:branches,id',
+            'arrival_branch_id' => 'required|exists:todays_arrival_branches,id',
             'product_ids' => 'required|array',
             'product_ids.*' => 'exists:products,id',
             'arrival_date' => 'required|date',
@@ -57,7 +63,9 @@ class TodaysArrivalController extends Controller
         $posterImages = [];
         if ($request->hasFile('poster_images')) {
             foreach ($request->file('poster_images') as $image) {
-                $posterImages[] = $this->uploadImage($image, 'arrivals');
+                if ($image && $image->isValid()) {
+                    $posterImages[] = $this->uploadImage($image, 'arrivals');
+                }
             }
         }
 
@@ -66,10 +74,12 @@ class TodaysArrivalController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'arrival_date' => $request->arrival_date,
-            'branch_id' => json_encode($request->branch_ids),
-            'product_ids' => json_encode($request->product_ids),
+            'arrival_branch_id' => $request->arrival_branch_id,
+            'product_ids' => $request->product_ids,
             'main_poster' => $mainPoster,
-            'poster_images' => json_encode($posterImages),
+            'poster_images' => $posterImages,
+            'whatsapp_message_template' => $request->whatsapp_message_template,
+            'whatsapp_enabled' => $request->has('whatsapp_enabled'),
             'is_active' => true,
             'show_in_app' => $request->has('show_in_app'),
             'sort_order' => $request->sort_order ?? 0,
@@ -82,7 +92,7 @@ class TodaysArrivalController extends Controller
     public function edit($id)
     {
         $arrival = TodaysArrival::findOrFail($id);
-        $branches = Branch::where('status', 1)->get();
+        $branches = TodaysArrivalBranch::where('is_active', true)->get();
         $products = Product::where('status', 1)->get();
         
         return view('admin-views.todays-arrival.edit', compact('arrival', 'branches', 'products'));
@@ -95,8 +105,7 @@ class TodaysArrivalController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'branch_ids' => 'required|array',
-            'branch_ids.*' => 'exists:branches,id',
+            'arrival_branch_id' => 'required|exists:todays_arrival_branches,id',
             'product_ids' => 'required|array',
             'product_ids.*' => 'exists:products,id',
             'arrival_date' => 'required|date',
@@ -130,20 +139,27 @@ class TodaysArrivalController extends Controller
         // Handle new poster images
         if ($request->hasFile('poster_images')) {
             foreach ($request->file('poster_images') as $image) {
-                if ($image->isValid()) {
+                if ($image && $image->isValid()) {
                     $posterImages[] = $this->uploadImage($image, 'arrivals');
                 }
             }
+        }
+
+        // Ensure we don't exceed max images (5)
+        if (count($posterImages) > 5) {
+            $posterImages = array_slice($posterImages, 0, 5);
         }
 
         $arrival->update([
             'title' => $request->title,
             'description' => $request->description,
             'arrival_date' => $request->arrival_date,
-            'branch_id' => json_encode($request->branch_ids),
-            'product_ids' => json_encode($request->product_ids),
+            'arrival_branch_id' => $request->arrival_branch_id,
+            'product_ids' => $request->product_ids,
             'main_poster' => $mainPoster,
-            'poster_images' => json_encode($posterImages),
+            'poster_images' => $posterImages,
+            'whatsapp_message_template' => $request->whatsapp_message_template,
+            'whatsapp_enabled' => $request->has('whatsapp_enabled'),
             'show_in_app' => $request->has('show_in_app'),
             'sort_order' => $request->sort_order ?? 0,
         ]);
@@ -199,7 +215,21 @@ class TodaysArrivalController extends Controller
     private function uploadImage($image, $path)
     {
         $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-        $image->storeAs('public/' . $path, $filename);
+        
+        // Create public uploads directory for direct web access
+        $publicUploadsPath = public_path('uploads/' . $path);
+        if (!file_exists($publicUploadsPath)) {
+            mkdir($publicUploadsPath, 0755, true);
+        }
+        
+        // Store directly in public uploads directory
+        $image->move($publicUploadsPath, $filename);
+        
+        // Also backup to Laravel storage
+        $uploadedFile = $publicUploadsPath . '/' . $filename;
+        $storagePath = 'public/' . $path . '/' . $filename;
+        Storage::put($storagePath, file_get_contents($uploadedFile));
+        
         return $filename;
     }
 
@@ -208,8 +238,21 @@ class TodaysArrivalController extends Controller
      */
     private function deleteImage($filename, $path)
     {
+        // Delete from main storage
         if ($filename && Storage::exists('public/' . $path . '/' . $filename)) {
             Storage::delete('public/' . $path . '/' . $filename);
+        }
+        
+        // Delete from public uploads directory (new path)
+        $publicUploadFile = public_path('uploads/' . $path . '/' . $filename);
+        if (file_exists($publicUploadFile)) {
+            unlink($publicUploadFile);
+        }
+        
+        // Also delete from old public storage location
+        $publicStorageFile = public_path('storage/app/public/' . $path . '/' . $filename);
+        if (file_exists($publicStorageFile)) {
+            unlink($publicStorageFile);
         }
     }
 }

@@ -38,12 +38,13 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="branch_ids">{{translate('Branches')}} 
+                                        <label class="input-label" for="arrival_branch_id">{{translate('Branch')}} 
                                             <span class="input-label-secondary">*</span></label>
-                                        <select name="branch_ids[]" class="form-control js-select2-custom" multiple required>
+                                        <select name="arrival_branch_id" class="form-control" required>
+                                            <option value="">{{translate('Select Branch')}}</option>
                                             @foreach($branches as $branch)
-                                                <option value="{{$branch['id']}}" {{in_array($branch['id'], old('branch_ids', [])) ? 'selected' : ''}}>
-                                                    {{$branch['name']}} ({{$branch['whatsapp_number']}})
+                                                <option value="{{$branch['id']}}" {{old('arrival_branch_id') == $branch['id'] ? 'selected' : ''}}>
+                                                    {{$branch['name']}} @if($branch['whatsapp_number'])({{$branch['whatsapp_number']}})@endif
                                                 </option>
                                             @endforeach
                                         </select>
@@ -224,7 +225,7 @@
                             <td>
                                 <div>
                                     <img class="img-vertical-150"
-                                         src="{{$arrival->main_poster ? asset('storage/app/public/arrivals/' . $arrival->main_poster) : asset('public/assets/admin/img/no-image.jpg')}}"
+                                         src="{{$arrival->main_poster_url ?: asset('public/assets/admin/img/no-image.jpg')}}"
                                          alt="{{ translate('main poster') }}"
                                     >
                                 </div>
@@ -252,26 +253,22 @@
                             </td>
                             <td>
                                 <span class="d-block font-size-sm text-body">
-                                    @if($arrival->branch_id && count($arrival->branch_id) > 0)
-                                        @foreach($arrival->branches() as $branch)
-                                            <div>{{$branch->name}}</div>
-                                            <small class="text-muted">{{$branch->whatsapp_number}}</small>
-                                        @endforeach
+                                    @if($arrival->arrivalBranch)
+                                        <div>{{$arrival->arrivalBranch->name}}</div>
+                                        <small class="text-muted">{{$arrival->arrivalBranch->whatsapp_number}}</small>
                                     @else
-                                        {{translate('No branches')}}
+                                        {{translate('No branch')}}
                                     @endif
                                 </span>
                             </td>
                             <td>
-                                @if($arrival->branch_id && count($arrival->branch_id) > 0)
-                                    @foreach($arrival->branches() as $branch)
-                                        <a href="https://wa.me/{{$branch->whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
-                                           target="_blank" class="btn btn-sm btn-outline-success mb-1">
-                                            <i class="tio-chat"></i> {{$branch->name}}
-                                        </a>
-                                    @endforeach
+                                @if($arrival->arrivalBranch)
+                                    <a href="https://wa.me/{{$arrival->arrivalBranch->whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
+                                       target="_blank" class="btn btn-sm btn-outline-success mb-1">
+                                        <i class="tio-chat"></i> {{$arrival->arrivalBranch->name}}
+                                    </a>
                                 @else
-                                    <span class="text-muted">{{translate('No branches')}}</span>
+                                    <span class="text-muted">{{translate('No branch')}}</span>
                                 @endif
                             </td>
                             <td>

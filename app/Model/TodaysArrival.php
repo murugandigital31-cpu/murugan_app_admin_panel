@@ -78,7 +78,7 @@ class TodaysArrival extends Model
             return collect();
         }
         
-        return Branch::whereIn('id', $this->branch_id)->get();
+        return TodaysArrivalBranch::whereIn('id', $this->branch_id)->get();
     }
 
     /**

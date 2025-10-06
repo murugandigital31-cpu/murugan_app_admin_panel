@@ -33,26 +33,14 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="branch_ids">{{translate('Branches')}} 
+                                        <label class="input-label" for="arrival_branch_id">{{translate('Branch')}} 
                                             <span class="input-label-secondary">*</span></label>
                                         
-                                        {{-- Debug info --}}
-                                        @if(config('app.debug'))
-                                        <small class="text-muted">
-                                            Debug - Stored branch_id: {{json_encode($arrival->branch_id)}} 
-                                            | Type: {{gettype($arrival->branch_id)}}
-                                        </small>
-                                        @endif
-                                        
-                                        <select name="branch_ids[]" class="form-control js-select2-custom" multiple required>
+                                        <select name="arrival_branch_id" class="form-control" required>
+                                            <option value="">{{translate('Select Branch')}}</option>
                                             @foreach($branches as $branch)
-                                                @php
-                                                    $selectedBranches = is_array($arrival->branch_id) ? $arrival->branch_id : 
-                                                                       (is_string($arrival->branch_id) ? json_decode($arrival->branch_id, true) : []);
-                                                    $isSelected = is_array($selectedBranches) && in_array($branch['id'], $selectedBranches);
-                                                @endphp
-                                                <option value="{{$branch['id']}}" {{$isSelected ? 'selected' : ''}}>
-                                                    {{$branch['name']}} ({{$branch['whatsapp_number']}})
+                                                <option value="{{$branch['id']}}" {{old('arrival_branch_id', $arrival->arrival_branch_id) == $branch['id'] ? 'selected' : ''}}>
+                                                    {{$branch['name']}} @if($branch['whatsapp_number'])({{$branch['whatsapp_number']}})@endif
                                                 </option>
                                             @endforeach
                                         </select>
@@ -113,7 +101,7 @@
                                     <input type="file" name="main_poster" id="mainPoster" class="" 
                                            accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*" hidden>
                                     <img id="mainPosterViewer" 
-                                         src="{{$arrival->main_poster ? asset('storage/app/public/arrivals/' . $arrival->main_poster) : asset('public/assets/admin/img/upload-vertical.png')}}" 
+                                         src="{{$arrival->main_poster_url ?: asset('public/assets/admin/img/upload-vertical.png')}}" 
                                          alt="{{ translate('main poster image') }}"/>
                                 </label>
                             </div>
@@ -127,7 +115,7 @@
                                 @foreach($arrival->poster_images as $index => $image)
                                 <div class="col-md-2 mb-3" id="currentImage{{$index}}">
                                     <div class="position-relative">
-                                        <img src="{{asset('storage/app/public/arrivals/' . $image)}}" 
+                                        <img src="{{asset('uploads/arrivals/' . $image)}}" 
                                              class="img-fluid rounded" style="height: 100px; width: 100%; object-fit: cover;" 
                                              alt="{{translate('poster image')}}">
                                         <button type="button" class="btn btn-sm btn-danger position-absolute" 

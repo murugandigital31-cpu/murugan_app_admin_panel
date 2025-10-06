@@ -22,10 +22,18 @@
                     <div class="col-md-6">
                         <h5>{{translate('Arrival Details')}}</h5>
                         <p><strong>{{translate('Title')}}:</strong> {{$arrival->title}}</p>
-                        <p><strong>{{translate('Product')}}:</strong> {{$arrival->product->name ?? translate('N/A')}}</p>
-                        <p><strong>{{translate('Branch')}}:</strong> {{$arrival->branch->name ?? translate('N/A')}}</p>
-                        @if($arrival->branch)
-                            <p><strong>{{translate('WhatsApp')}}:</strong> {{$arrival->branch->whatsapp_number}}</p>
+                        <p><strong>{{translate('Product')}}:</strong> 
+                            @if($arrival->products() && $arrival->products()->count() > 0)
+                                @foreach($arrival->products() as $product)
+                                    {{$product->name}}@if(!$loop->last), @endif
+                                @endforeach
+                            @else
+                                {{translate('N/A')}}
+                            @endif
+                        </p>
+                        <p><strong>{{translate('Branch')}}:</strong> {{$arrival->arrivalBranch->name ?? translate('N/A')}}</p>
+                        @if($arrival->arrivalBranch)
+                            <p><strong>{{translate('WhatsApp')}}:</strong> {{$arrival->arrivalBranch->whatsapp_number}}</p>
                         @endif
                     </div>
                     <div class="col-md-6">
@@ -33,9 +41,9 @@
                         <div class="bg-light p-3 rounded">
                             {{$arrival->formatted_whatsapp_message}}
                         </div>
-                        @if($arrival->branch)
+                        @if($arrival->arrivalBranch)
                             <div class="mt-2">
-                                <a href="https://wa.me/{{$arrival->branch->formatted_whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
+                                <a href="https://wa.me/{{$arrival->arrivalBranch->whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
                                    target="_blank" class="btn btn-success">
                                     <i class="tio-chat"></i> {{translate('Test WhatsApp')}}
                                 </a>
@@ -71,11 +79,11 @@
                     @foreach($arrival->poster_images as $index => $image)
                         <div class="col-md-3 mb-3">
                             <div class="border rounded p-2">
-                                <img src="{{asset('storage/app/public/todays-arrival/poster/' . $image)}}" 
+                                <img src="{{asset('uploads/arrivals/' . $image)}}" 
                                      class="img-fluid rounded" style="height: 200px; width: 100%; object-fit: cover; cursor: pointer;" 
                                      alt="{{translate('Poster')}} {{$index + 1}}"
                                      data-toggle="modal" data-target="#imageModal" 
-                                     data-src="{{asset('storage/app/public/todays-arrival/poster/' . $image)}}">
+                                     data-src="{{asset('uploads/arrivals/' . $image)}}">
                                 <p class="text-center mt-2 mb-0">
                                     <small>{{translate('Poster')}} {{$index + 1}}</small>
                                 </p>
@@ -109,13 +117,22 @@
                                          alt="{{translate('Main Poster')}}">
                                     
                                     <!-- Product info -->
-                                    <p class="mb-2"><small><strong>{{translate('Product')}}:</strong> {{$arrival->product->name ?? translate('N/A')}}</small></p>
+                                    <p class="mb-2"><small><strong>{{translate('Product')}}:</strong> 
+                                        @if($arrival->products() && $arrival->products()->count() > 0)
+                                            {{$arrival->products()->first()->name}}
+                                            @if($arrival->products()->count() > 1)
+                                                +{{$arrival->products()->count() - 1}} more
+                                            @endif
+                                        @else
+                                            {{translate('N/A')}}
+                                        @endif
+                                    </small></p>
                                     
                                     <!-- Additional posters preview -->
                                     @if($arrival->poster_images && count($arrival->poster_images) > 0)
                                     <div class="d-flex flex-wrap mb-2">
                                         @foreach(array_slice($arrival->poster_images, 0, 3) as $image)
-                                            <img src="{{asset('storage/app/public/todays-arrival/poster/' . $image)}}" 
+                                            <img src="{{asset('uploads/arrivals/' . $image)}}" 
                                                  class="rounded mr-1 mb-1" style="height: 40px; width: 40px; object-fit: cover;" 
                                                  alt="{{translate('Poster')}}">
                                         @endforeach

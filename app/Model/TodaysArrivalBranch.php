@@ -29,7 +29,15 @@ class TodaysArrivalBranch extends Model
     // Relationships
     public function todaysArrivals()
     {
-        return $this->hasMany(TodaysArrival::class, 'arrival_branch_id');
+        // Since branch_id is stored as JSON array, we need a custom relationship
+        return $this->hasManyThrough(
+            TodaysArrival::class,
+            static::class,
+            'id',
+            'id',
+            'id',
+            'id'
+        )->whereRaw("JSON_CONTAINS(branch_id, '\"$this->id\"')");
     }
 
     // Accessors

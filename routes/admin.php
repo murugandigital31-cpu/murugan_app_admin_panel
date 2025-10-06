@@ -515,6 +515,25 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
         });
 
 
+        Route::group(['prefix' => 'todays-arrival', 'as' => 'todays-arrival.'], function () {
+            Route::get('add-new', [TodaysArrivalController::class, 'index'])->name('add-new');
+            Route::post('store', [TodaysArrivalController::class, 'store'])->name('store');
+            Route::get('edit/{id}', [TodaysArrivalController::class, 'edit'])->name('edit');
+            Route::post('update/{id}', [TodaysArrivalController::class, 'update'])->name('update');
+            Route::get('preview/{id}', [TodaysArrivalController::class, 'preview'])->name('preview');
+            Route::delete('delete/{id}', [TodaysArrivalController::class, 'delete'])->name('delete');
+            Route::get('status/{id}/{status}', [TodaysArrivalController::class, 'status'])->name('status');
+        });
+
+        Route::group(['prefix' => 'todays-arrival-branch', 'as' => 'todays-arrival-branch.'], function () {
+            Route::get('index', [TodaysArrivalBranchController::class, 'index'])->name('index');
+            Route::post('store', [TodaysArrivalBranchController::class, 'store'])->name('store');
+            Route::get('edit/{id}', [TodaysArrivalBranchController::class, 'edit'])->name('edit');
+            Route::post('update/{id}', [TodaysArrivalBranchController::class, 'update'])->name('update');
+            Route::delete('delete/{id}', [TodaysArrivalBranchController::class, 'delete'])->name('delete');
+            Route::get('status/{id}/{status}', [TodaysArrivalBranchController::class, 'status'])->name('status');
+        });
+
         Route::get('verify-offline-payment/quick-view-details', [OfflinePaymentMethodController::class, 'quickViewDetails'])->name('offline-modal-view');
         Route::get('verify-offline-payment/{status}', [OfflinePaymentMethodController::class, 'offlinePaymentList'])->name('verify-offline-payment');
 

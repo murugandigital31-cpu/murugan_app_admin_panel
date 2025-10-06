@@ -171,7 +171,7 @@ class TodaysArrivalController extends Controller
     public function branches()
     {
         try {
-            // Get all active branches that have today's arrivals
+            // Get all active Today's Arrival branches that have arrivals
             $branchIds = TodaysArrival::active()
                 ->appVisible()
                 ->whereNotNull('branch_id')
@@ -181,17 +181,18 @@ class TodaysArrivalController extends Controller
                 ->filter()
                 ->values();
 
-            $branches = Branch::whereIn('id', $branchIds)
+            $branches = TodaysArrivalBranch::whereIn('id', $branchIds)
+                ->where('is_active', true)
                 ->get()
                 ->map(function ($branch) {
                     return [
                         'id' => $branch->id,
                         'name' => $branch->name,
-                        'phone' => $branch->phone,
+                        'phone' => $branch->contact_person ?? '',
                         'whatsapp_number' => $branch->whatsapp_number,
                         'address' => $branch->address,
-                        'latitude' => $branch->latitude ?? null,
-                        'longitude' => $branch->longitude ?? null,
+                        'latitude' => null,
+                        'longitude' => null,
                     ];
                 });
 
@@ -238,10 +239,10 @@ class TodaysArrivalController extends Controller
             // Get branch details
             $branch = null;
             if ($branchId && $arrival->branch_id && in_array($branchId, $arrival->branch_id)) {
-                $branch = Branch::find($branchId);
+                $branch = TodaysArrivalBranch::find($branchId);
             } else if ($arrival->branch_id && count($arrival->branch_id) > 0) {
                 // Use first branch if no specific branch requested
-                $branch = Branch::find($arrival->branch_id[0]);
+                $branch = TodaysArrivalBranch::find($arrival->branch_id[0]);
             }
 
             if (!$branch) {
@@ -322,26 +323,44 @@ class TodaysArrivalController extends Controller
         // Get branches for this arrival
         $branches = [];
         if ($arrival->branch_id) {
-            $branches = Branch::whereIn('id', $arrival->branch_id)
-                ->get()
-                ->map(function($branch) {
-                    return [
-                        'id' => $branch->id,
-                        'name' => $branch->name,
-                        'phone' => $branch->phone,
-                        'whatsapp_number' => $branch->whatsapp_number,
-                        'address' => $branch->address,
-                        'latitude' => $branch->latitude ?? null,
-                        'longitude' => $branch->longitude ?? null,
-                    ];
-                })
-                ->toArray();
+            // Handle JSON string format
+            $branchIds = $arrival->branch_id;
+            if (is_string($branchIds)) {
+                $branchIds = json_decode($branchIds, true);
+            }
+            
+            if (is_array($branchIds) && count($branchIds) > 0) {
+                // Filter out null/empty values
+                $branchIds = array_filter($branchIds, function($id) {
+                    return $id !== null && $id !== '' && $id !== 0;
+                });
+                
+                if (!empty($branchIds)) {
+                    $branches = TodaysArrivalBranch::whereIn('id', $branchIds)
+                        ->get()
+                        ->map(function($branch) {
+                            return [
+                                'id' => (int) $branch->id,
+                                'name' => $branch->name ?? '',
+                                'phone' => $branch->contact_person ?? '',
+                                'whatsapp_number' => $branch->whatsapp_number ?? '',
+                                'address' => $branch->address ?? '',
+                                'latitude' => null, // TodaysArrivalBranch doesn't have lat/lng
+                                'longitude' => null,
+                            ];
+                        })
+                        ->toArray();
+                }
+            }
         }
         
+        // Ensure we always have an array, never null
+        $branches = $branches ?: [];
+        
         $data = [
-            'id' => $arrival->id,
-            'title' => $arrival->title,
-            'description' => $arrival->description,
+            'id' => (int) $arrival->id,
+            'title' => $arrival->title ?? '',
+            'description' => $arrival->description ?? '',
             'arrival_date' => $arrival->arrival_date->format('Y-m-d'),
             'arrival_date_formatted' => $arrival->arrival_date->format('M d, Y'),
             'poster_images' => $this->formatPosterImages($arrival->poster_images, $baseUrl),
@@ -349,19 +368,44 @@ class TodaysArrivalController extends Controller
             'products_count' => count($arrival->product_ids ?? []),
             'branches_count' => count($branches),
             'branches' => $branches,
-            'whatsapp_message' => $arrival->formatted_whatsapp_message,
-            'sort_order' => $arrival->sort_order,
+            'whatsapp_message' => $arrival->formatted_whatsapp_message ?? '',
+            'sort_order' => (int) ($arrival->sort_order ?? 0),
             'created_at' => $arrival->created_at->toISOString(),
             'updated_at' => $arrival->updated_at->toISOString(),
         ];
 
+        // Debug info (remove in production)
+        if (config('app.debug')) {
+            $data['debug'] = [
+                'branch_id_raw' => $arrival->branch_id,
+                'branch_id_type' => gettype($arrival->branch_id),
+                'product_ids_raw' => $arrival->product_ids,
+                'product_ids_type' => gettype($arrival->product_ids),
+                'poster_images_raw' => $arrival->poster_images,
+                'main_poster_raw' => $arrival->main_poster,
+            ];
+        }
+
         if ($includeProducts && $arrival->product_ids) {
-            $products = Product::whereIn('id', $arrival->product_ids)
-                ->get()
+            // Handle JSON string format for product_ids
+            $productIds = $arrival->product_ids;
+            if (is_string($productIds)) {
+                $productIds = json_decode($productIds, true);
+            }
+            
+            if (is_array($productIds) && !empty($productIds)) {
+                // Filter out null/empty values
+                $productIds = array_filter($productIds, function($id) {
+                    return $id !== null && $id !== '' && $id !== 0;
+                });
+                
+                if (!empty($productIds)) {
+                    $products = Product::whereIn('id', $productIds)
+                        ->get()
                 ->map(function($product) use ($baseUrl) {
-                    $imageUrl = null;
+                    // Handle image as array (Flutter expects List<String>)
+                    $imageUrls = [];
                     if ($product->image) {
-                        // Handle both single image and array of images
                         $imageData = $product->image;
                         
                         // If it's a JSON string, decode it
@@ -369,41 +413,50 @@ class TodaysArrivalController extends Controller
                             $imageData = json_decode($imageData, true);
                         }
                         
-                        // If it's an array, get the first image
-                        if (is_array($imageData) && count($imageData) > 0) {
-                            $imageName = $imageData[0];
-                        } else if (is_string($imageData)) {
-                            $imageName = $imageData;
-                        } else {
-                            $imageName = null;
-                        }
-                        
-                        if ($imageName) {
-                            if (filter_var($imageName, FILTER_VALIDATE_URL)) {
-                                $imageUrl = $imageName;
+                        // If it's an array, process all images
+                        if (is_array($imageData)) {
+                            foreach ($imageData as $imageName) {
+                                if ($imageName) {
+                                    if (filter_var($imageName, FILTER_VALIDATE_URL)) {
+                                        $imageUrls[] = $imageName;
+                                    } else {
+                                        $imageUrls[] = $baseUrl . '/storage/product/' . $imageName;
+                                    }
+                                }
+                            }
+                        } else if (is_string($imageData) && $imageData) {
+                            // Single image as string
+                            if (filter_var($imageData, FILTER_VALIDATE_URL)) {
+                                $imageUrls[] = $imageData;
                             } else {
-                                $imageUrl = $baseUrl . '/storage/product/' . $imageName;
+                                $imageUrls[] = $baseUrl . '/storage/product/' . $imageData;
                             }
                         }
                     }
                     
                     return [
-                        'id' => $product->id,
-                        'name' => $product->name,
+                        'id' => (int) $product->id,
+                        'name' => $product->name ?? '',
                         'description' => $product->description ?? '',
-                        'price' => (float) $product->price,
+                        'price' => (float) ($product->price ?? 0),
                         'discount_price' => $product->discount_price ? (float) $product->discount_price : null,
-                        'image' => $imageUrl,
+                        'image' => $imageUrls, // Return as array for Flutter
                         'unit' => $product->unit ?? 'pc',
                         'tax' => (float) ($product->tax ?? 0),
                         'available_time_starts' => $product->available_time_starts ?? null,
                         'available_time_ends' => $product->available_time_ends ?? null,
                         'status' => (int) ($product->status ?? 1),
-                        'created_at' => $product->created_at->toISOString(),
+                        'created_at' => $product->created_at ? $product->created_at->toISOString() : null,
                     ];
                 });
             
-            $data['products'] = $products;
+                $data['products'] = $products->toArray();
+                } else {
+                    $data['products'] = [];
+                }
+            } else {
+                $data['products'] = [];
+            }
         }
 
         return $data;
@@ -449,15 +502,17 @@ class TodaysArrivalController extends Controller
             $posterImages = json_decode($posterImages, true);
         }
 
-        if (!is_array($posterImages)) {
+        if (!is_array($posterImages) || empty($posterImages)) {
             return [];
         }
 
         return array_map(function($image) use ($baseUrl) {
+            if (!$image) return null;
+            
             if (filter_var($image, FILTER_VALIDATE_URL)) {
                 return $image;
             }
             return $baseUrl . '/storage/arrivals/' . $image;
-        }, $posterImages);
+        }, array_filter($posterImages)); // Remove null/empty values
     }
 }
