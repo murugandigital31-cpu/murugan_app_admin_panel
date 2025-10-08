@@ -510,11 +510,16 @@
 
         function filterProductsByCategory(categoryId) {
             const $productSelect = $('#productSelect');
+
+            // Destroy Select2 first
+            $productSelect.select2('destroy');
+
+            // Get all options
             const $options = $productSelect.find('option');
 
             if (!categoryId) {
                 // Show all products
-                $options.show();
+                $options.prop('disabled', false).show();
             } else {
                 // Hide/show products based on category
                 $options.each(function() {
@@ -523,24 +528,32 @@
 
                     // Check if product belongs to selected category
                     if (productCategories && productCategories.toString().includes(categoryId)) {
-                        $option.show();
+                        $option.prop('disabled', false).show();
                     } else {
-                        $option.hide();
+                        $option.prop('disabled', true).hide();
                     }
                 });
             }
 
-            // Refresh Select2 to show filtered options
-            $productSelect.trigger('change.select2');
+            // Reinitialize Select2
+            $productSelect.select2({
+                placeholder: 'Select multiple products for this arrival',
+                allowClear: true
+            });
         }
 
         function filterBulkAddProductsByCategory(categoryId) {
             const $bulkAddSelect = $('#bulkAddSelect');
+
+            // Destroy Select2 first
+            $bulkAddSelect.select2('destroy');
+
+            // Get all options
             const $options = $bulkAddSelect.find('option');
 
             if (!categoryId) {
                 // Show all products
-                $options.show();
+                $options.prop('disabled', false).show();
             } else {
                 // Hide/show products based on category
                 $options.each(function() {
@@ -549,15 +562,18 @@
 
                     // Check if product belongs to selected category
                     if (productCategories && productCategories.toString().includes(categoryId)) {
-                        $option.show();
+                        $option.prop('disabled', false).show();
                     } else {
-                        $option.hide();
+                        $option.prop('disabled', true).hide();
                     }
                 });
             }
 
-            // Refresh Select2 to show filtered options
-            $bulkAddSelect.trigger('change.select2');
+            // Reinitialize Select2
+            $bulkAddSelect.select2({
+                placeholder: 'Select multiple products to add at once',
+                allowClear: true
+            });
         }
 
         function showBulkAddModal() {
