@@ -81,9 +81,21 @@
                                                     $selectedProducts = is_array($arrival->product_ids) ? $arrival->product_ids :
                                                                        (is_string($arrival->product_ids) ? json_decode($arrival->product_ids, true) : []);
                                                     $isSelected = is_array($selectedProducts) && in_array($product['id'], $selectedProducts);
+
+                                                    $categoryIds = '';
+                                                    if (isset($product['category_ids'])) {
+                                                        if (is_array($product['category_ids'])) {
+                                                            $categoryIds = implode(',', array_column($product['category_ids'], 'id'));
+                                                        } elseif (is_string($product['category_ids'])) {
+                                                            $decoded = json_decode($product['category_ids'], true);
+                                                            if (is_array($decoded)) {
+                                                                $categoryIds = implode(',', array_column($decoded, 'id'));
+                                                            }
+                                                        }
+                                                    }
                                                 @endphp
                                                 <option value="{{$product['id']}}"
-                                                        data-category="{{$product['category_ids'] ?? ''}}"
+                                                        data-category="{{$categoryIds}}"
                                                         {{$isSelected ? 'selected' : ''}}>
                                                     {{$product['name']}}
                                                 </option>
@@ -274,7 +286,20 @@
                         <label>{{translate('Select Products to Add')}}</label>
                         <select name="product_ids[]" id="bulkAddSelect" class="form-control js-select2-custom" multiple required>
                             @foreach($products as $product)
-                                <option value="{{$product['id']}}" data-category="{{$product['category_ids'] ?? ''}}">
+                                @php
+                                    $categoryIds = '';
+                                    if (isset($product['category_ids'])) {
+                                        if (is_array($product['category_ids'])) {
+                                            $categoryIds = implode(',', array_column($product['category_ids'], 'id'));
+                                        } elseif (is_string($product['category_ids'])) {
+                                            $decoded = json_decode($product['category_ids'], true);
+                                            if (is_array($decoded)) {
+                                                $categoryIds = implode(',', array_column($decoded, 'id'));
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                <option value="{{$product['id']}}" data-category="{{$categoryIds}}">
                                     {{$product['name']}}
                                 </option>
                             @endforeach

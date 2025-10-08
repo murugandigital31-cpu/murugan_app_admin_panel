@@ -215,6 +215,13 @@ class TodaysArrivalController extends Controller
             $date = $request->get('date');
             $branchId = $request->get('branch_id');
 
+            // Debug logging
+            \Log::info('TodaysArrival API Request', [
+                'date' => $date,
+                'branch_id' => $branchId,
+                'request_all' => $request->all()
+            ]);
+
             // Try to get data from database
             try {
                 if (class_exists('App\Model\TodaysArrival')) {
@@ -228,11 +235,25 @@ class TodaysArrivalController extends Controller
                     // Filter by branch if provided
                     if ($branchId) {
                         $query->forBranch($branchId);
+                        \Log::info('Filtering by branch', ['branch_id' => $branchId]);
                     }
 
                     $data = $query->orderBy('sort_order', 'asc')
                         ->orderBy('arrival_date', 'desc')
                         ->get();
+
+                    // Debug: Log results
+                    \Log::info('TodaysArrival Query Results', [
+                        'count' => $data->count(),
+                        'arrivals' => $data->map(function($arrival) {
+                            return [
+                                'id' => $arrival->id,
+                                'title' => $arrival->title,
+                                'branch_id' => $arrival->branch_id,
+                                'arrival_date' => $arrival->arrival_date
+                            ];
+                        })
+                    ]);
                 } elseif (class_exists('App\Models\TodaysArrival')) {
                     $query = \App\Models\TodaysArrival::where('is_active', true)
                         ->where('show_in_app', true);

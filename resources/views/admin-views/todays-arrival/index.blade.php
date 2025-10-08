@@ -81,8 +81,21 @@
                                         </div>
                                         <select name="product_ids[]" id="productSelect" class="form-control js-select2-custom" multiple required>
                                             @foreach($products as $product)
+                                                @php
+                                                    $categoryIds = '';
+                                                    if (isset($product['category_ids'])) {
+                                                        if (is_array($product['category_ids'])) {
+                                                            $categoryIds = implode(',', array_column($product['category_ids'], 'id'));
+                                                        } elseif (is_string($product['category_ids'])) {
+                                                            $decoded = json_decode($product['category_ids'], true);
+                                                            if (is_array($decoded)) {
+                                                                $categoryIds = implode(',', array_column($decoded, 'id'));
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
                                                 <option value="{{$product['id']}}"
-                                                        data-category="{{$product['category_ids'] ?? ''}}"
+                                                        data-category="{{$categoryIds}}"
                                                         {{in_array($product['id'], old('product_ids', [])) ? 'selected' : ''}}>
                                                     {{$product['name']}}
                                                 </option>
@@ -376,7 +389,20 @@
                         <label>{{translate('Select Products to Add')}}</label>
                         <select id="bulkAddSelect" class="form-control js-select2-custom" multiple>
                             @foreach($products as $product)
-                                <option value="{{$product['id']}}" data-category="{{$product['category_ids'] ?? ''}}">
+                                @php
+                                    $categoryIds = '';
+                                    if (isset($product['category_ids'])) {
+                                        if (is_array($product['category_ids'])) {
+                                            $categoryIds = implode(',', array_column($product['category_ids'], 'id'));
+                                        } elseif (is_string($product['category_ids'])) {
+                                            $decoded = json_decode($product['category_ids'], true);
+                                            if (is_array($decoded)) {
+                                                $categoryIds = implode(',', array_column($decoded, 'id'));
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                <option value="{{$product['id']}}" data-category="{{$categoryIds}}">
                                     {{$product['name']}}
                                 </option>
                             @endforeach

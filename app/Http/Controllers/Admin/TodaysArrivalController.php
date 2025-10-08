@@ -31,8 +31,8 @@ class TodaysArrivalController extends Controller
             $branches = TodaysArrivalBranch::all();
         }
 
-        // Get categories for filtering
-        $categories = Category::where('status', 1)
+        // Get categories for filtering (parent categories only)
+        $categories = Category::active()
             ->whereNull('parent_id')
             ->orderBy('name', 'asc')
             ->get();
@@ -101,8 +101,8 @@ class TodaysArrivalController extends Controller
         $arrival = TodaysArrival::findOrFail($id);
         $branches = TodaysArrivalBranch::where('is_active', true)->get();
 
-        // Get categories for filtering
-        $categories = Category::where('status', 1)
+        // Get categories for filtering (parent categories only)
+        $categories = Category::active()
             ->whereNull('parent_id')
             ->orderBy('name', 'asc')
             ->get();
