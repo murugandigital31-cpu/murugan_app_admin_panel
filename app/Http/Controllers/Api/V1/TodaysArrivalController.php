@@ -9,22 +9,6 @@ use Illuminate\Http\JsonResponse;
 class TodaysArrivalController extends Controller
 {
     /**
-     * Helper method to format branch IDs
-     */
-    private function formatBranchIds($branchId): array
-    {
-        $branchIds = [];
-        if ($branchId && is_array($branchId)) {
-            $branchIds = array_map('intval', array_filter($branchId));
-        }
-        // If no branches specified, default to branch 1
-        if (empty($branchIds)) {
-            $branchIds = [1];
-        }
-        return $branchIds;
-    }
-
-    /**
      * Helper method to format arrival data
      */
     private function formatArrivalData($arrival): array
@@ -75,16 +59,16 @@ class TodaysArrivalController extends Controller
         
         // Get branch details
         $branches = [];
-        $branchIds = $this->formatBranchIds($arrival->branch_id);
-        
-        if (!empty($branchIds)) {
+        $branchId = $arrival->arrival_branch_id;
+
+        if (!empty($branchId)) {
             try {
                 if (class_exists('App\Model\TodaysArrivalBranch')) {
-                    $branchData = \App\Model\TodaysArrivalBranch::whereIn('id', $branchIds)
+                    $branch = \App\Model\TodaysArrivalBranch::where('id', $branchId)
                         ->where('is_active', true)
-                        ->get();
-                    
-                    foreach ($branchData as $branch) {
+                        ->first();
+
+                    if ($branch) {
                         $branches[] = [
                             'id' => (int) $branch->id,
                             'name' => (string) ($branch->name ?? 'Unknown Branch'),
@@ -97,16 +81,14 @@ class TodaysArrivalController extends Controller
                 }
             } catch (\Exception $e) {
                 // Fallback if branch loading fails
-                foreach ($branchIds as $branchId) {
-                    $branches[] = [
-                        'id' => (int) $branchId,
-                        'name' => 'Branch ' . $branchId,
-                        'phone' => '',
-                        'whatsapp_number' => '',
-                        'address' => '',
-                        'contact_person' => '',
-                    ];
-                }
+                $branches[] = [
+                    'id' => (int) $branchId,
+                    'name' => 'Branch ' . $branchId,
+                    'phone' => '',
+                    'whatsapp_number' => '',
+                    'address' => '',
+                    'contact_person' => '',
+                ];
             }
         }
         
@@ -191,7 +173,7 @@ class TodaysArrivalController extends Controller
             'image' => $mainImage,
             'poster_images' => $posterImages, // Always an array of valid URLs
             'branches' => $branches, // Full branch details instead of just IDs
-            'branch_id' => $branchIds, // Always an array of integers
+            'branch_id' => $branchId ? [$branchId] : [], // Always an array for backward compatibility
             'products' => $products, // Add product details
             'arrival_date' => $arrival->arrival_date ? $arrival->arrival_date->format('Y-m-d') : null,
             'arrival_date_formatted' => $arrival->arrival_date ? $arrival->arrival_date->format('d/m/Y') : null,
@@ -249,7 +231,7 @@ class TodaysArrivalController extends Controller
                             return [
                                 'id' => $arrival->id,
                                 'title' => $arrival->title,
-                                'branch_id' => $arrival->branch_id,
+                                'branch_id' => $arrival->arrival_branch_id ? [$arrival->arrival_branch_id] : [],
                                 'arrival_date' => $arrival->arrival_date
                             ];
                         })
@@ -265,7 +247,7 @@ class TodaysArrivalController extends Controller
 
                     // Filter by branch if provided
                     if ($branchId) {
-                        $query->whereJsonContains('branch_id', (int)$branchId);
+                        $query->where('arrival_branch_id', (int)$branchId);
                     }
 
                     $data = $query->orderBy('arrival_date', 'desc')

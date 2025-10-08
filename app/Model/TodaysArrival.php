@@ -15,23 +15,26 @@ class TodaysArrival extends Model
         'title',
         'description',
         'arrival_date',
-        'branch_id',
+        'arrival_branch_id',
         'main_poster',
         'poster_images',
         'product_ids',
         'is_active',
         'show_in_app',
-        'sort_order'
+        'sort_order',
+        'whatsapp_message_template',
+        'whatsapp_enabled'
     ];
 
     protected $casts = [
         'arrival_date' => 'date',
         'poster_images' => 'array',
         'product_ids' => 'array',
-        'branch_id' => 'array',
+        'arrival_branch_id' => 'integer',
         'is_active' => 'boolean',
         'show_in_app' => 'boolean',
-        'sort_order' => 'integer'
+        'sort_order' => 'integer',
+        'whatsapp_enabled' => 'boolean'
     ];
 
     /**
@@ -63,22 +66,19 @@ class TodaysArrival extends Model
      */
     public function scopeForBranch($query, $branchId)
     {
-        return $query->where(function($q) use ($branchId) {
-            $q->whereJsonContains('branch_id', $branchId)
-              ->orWhereJsonContains('branch_id', (string)$branchId);
-        });
+        return $query->where('arrival_branch_id', (int)$branchId);
     }
 
     /**
-     * Get the branches for this arrival
+     * Get the branch for this arrival
      */
-    public function branches()
+    public function branch()
     {
-        if (!$this->branch_id) {
-            return collect();
+        if (!$this->arrival_branch_id) {
+            return null;
         }
-        
-        return TodaysArrivalBranch::whereIn('id', $this->branch_id)->get();
+
+        return TodaysArrivalBranch::find($this->arrival_branch_id);
     }
 
     /**

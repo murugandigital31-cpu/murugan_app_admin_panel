@@ -247,11 +247,12 @@
                 <table class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table">
                     <thead class="thead-light">
                     <tr>
-                        <th class="border-0">{{translate('#')}}</th>
+                        <th class="border-0">{{translate('SL')}}</th>
                         <th class="border-0">{{translate('Main Poster')}}</th>
                         <th class="border-0">{{translate('Title')}}</th>
                         <th class="border-0">{{translate('Product')}}</th>
                         <th class="border-0">{{translate('Branch')}}</th>
+                        <th class="border-0">{{translate('Date')}}</th>
                         <th class="border-0">{{translate('WhatsApp')}}</th>
                         <th class="text-center border-0">{{translate('Status')}}</th>
                         <th class="text-center border-0">{{translate('Action')}}</th>
@@ -302,8 +303,22 @@
                                 </span>
                             </td>
                             <td>
+                                <span class="d-block font-size-sm text-body">
+                                    @if($arrival->arrival_date)
+                                        <div class="font-weight-medium">
+                                            {{ \Carbon\Carbon::parse($arrival->arrival_date)->format('d M Y') }}
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ \Carbon\Carbon::parse($arrival->arrival_date)->diffForHumans() }}
+                                        </small>
+                                    @else
+                                        <span class="text-muted">{{translate('No date')}}</span>
+                                    @endif
+                                </span>
+                            </td>
+                            <td>
                                 @if($arrival->arrivalBranch)
-                                    <a href="https://wa.me/{{$arrival->arrivalBranch->whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}" 
+                                    <a href="https://wa.me/{{$arrival->arrivalBranch->whatsapp_number}}?text={{urlencode($arrival->formatted_whatsapp_message)}}"
                                        target="_blank" class="btn btn-sm btn-outline-success mb-1">
                                         <i class="tio-chat"></i> {{$arrival->arrivalBranch->name}}
                                     </a>
