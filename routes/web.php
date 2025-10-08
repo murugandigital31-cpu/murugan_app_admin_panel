@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\SslCommerzPaymentController;
 use App\Http\Controllers\StripePaymentController;
 use App\Http\Controllers\PaypalPaymentController;
@@ -176,3 +178,48 @@ Route::group(['prefix' => 'pages', 'as' => 'pages.'], function () {
 Route::get('test-order', function (){
 
 });
+
+// Serve files from uploads directory
+Route::get('uploads/arrivals/{filename}', function ($filename) {
+    $path = public_path('uploads/arrivals/' . $filename);
+    
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    
+    $file = File::get($path);
+    $type = File::mimeType($path);
+    
+    $response = Response::make($file, 200);
+    $response->header("Content-Type", $type);
+    $response->header("Cache-Control", "public, max-age=31536000");
+    
+    return $response;
+})->where('filename', '.*');
+
+// Redirect old storage URLs to new uploads location
+Route::get('storage/app/public/arrivals/{filename}', function ($filename) {
+    // Check if file exists in new uploads location
+    $newPath = public_path('uploads/arrivals/' . $filename);
+    if (file_exists($newPath)) {
+        return redirect(asset('uploads/arrivals/' . $filename), 301);
+    }
+    
+    // Check if file exists in storage and copy it to uploads
+    $storagePath = storage_path('app/public/arrivals/' . $filename);
+    if (file_exists($storagePath)) {
+        // Create uploads directory if it doesn't exist
+        $uploadsDir = public_path('uploads/arrivals');
+        if (!file_exists($uploadsDir)) {
+            mkdir($uploadsDir, 0755, true);
+        }
+        
+        // Copy file from storage to uploads
+        if (copy($storagePath, $newPath)) {
+            return redirect(asset('uploads/arrivals/' . $filename), 301);
+        }
+    }
+    
+    // If not found, return 404
+    abort(404);
+})->where('filename', '.*');

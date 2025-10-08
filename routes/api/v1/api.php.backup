@@ -25,37 +25,6 @@ use App\Http\Controllers\Api\V1\Auth\CustomerAuthController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Auth\DeliveryManLoginController;
 
-// Today's Arrivals API routes - NO THROTTLING - OUTSIDE MAIN GROUP
-Route::group(['prefix' => 'todays-arrivals', 'middleware' => ['localization']], function () {
-    // Direct test route - no controller
-    Route::get('/direct-test', function() {
-        return response()->json([
-            'test' => 'direct success',
-            'timestamp' => date('Y-m-d H:i:s'),
-            'arrivals' => []
-        ], 200, [
-            'Content-Type' => 'application/json; charset=UTF-8',
-            'Cache-Control' => 'no-cache, no-store, must-revalidate'
-        ]);
-    });
-    
-    // Test endpoints for debugging
-    Route::get('/simple-test', function() {
-        return response()->json(['test' => 'success', 'data' => []], 200, [
-            'Content-Type' => 'application/json; charset=UTF-8'
-        ]);
-    });
-    Route::get('/minimal', [TodaysArrivalController::class, 'minimal']);
-    Route::get('/debug', [TodaysArrivalController::class, 'debug']);
-    
-    // Main endpoints
-    Route::get('/', [TodaysArrivalController::class, 'index']);
-    Route::get('/{id}', [TodaysArrivalController::class, 'show']);
-    Route::get('/date-range', [TodaysArrivalController::class, 'getByDateRange']);
-    Route::get('/branches', [TodaysArrivalController::class, 'branches']);
-    Route::post('/{id}/whatsapp-checkout', [TodaysArrivalController::class, 'whatsappCheckout']);
-});
-
 Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function () {
 
     Route::group(['prefix' => 'auth', 'namespace' => 'Auth'], function () {
@@ -112,6 +81,14 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
         Route::get('trending', [ProductController::class, 'getTrendingProducts']);
         Route::get('recommended', [ProductController::class, 'getRecommendedProducts']);
         Route::get('most-reviewed', [ProductController::class, 'getMostReviewedProducts']);
+    });
+
+    Route::group(['prefix' => 'todays-arrivals'], function () {
+        Route::get('/', [TodaysArrivalController::class, 'index']);
+        Route::get('/{id}', [TodaysArrivalController::class, 'show']);
+        Route::get('/date-range', [TodaysArrivalController::class, 'getByDateRange']);
+        Route::get('/branches', [TodaysArrivalController::class, 'branches']);
+        Route::post('/{id}/whatsapp-checkout', [TodaysArrivalController::class, 'whatsappCheckout']);
     });
 
     Route::group(['prefix' => 'banners'], function () {
@@ -242,5 +219,181 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
 
     Route::post('customer/change-language', [CustomerController::class, 'changeLanguage']);
     Route::post('delivery-man/change-language', [DeliverymanController::class, 'changeLanguage']);
+
+    // Today's Arrivals API routes (note: plural "arrivals" to match Flutter app)
+    Route::group(['prefix' => 'todays-arrivals'], function () {
+        // Super simple test endpoint
+        Route::get('/simple-test', function() {
+            return response()->json(['test' => 'success', 'data' => []], 200, [
+                'Content-Type' => 'application/json; charset=UTF-8'
+            ]);
+        });
+        
+        // Minimal working endpoint from controller
+        Route::get('/minimal', [TodaysArrivalController::class, 'minimal']);
+        
+        // Debug endpoint from controller
+        Route::get('/debug', [TodaysArrivalController::class, 'debug']);
+        
+        // Static minimal working endpoint
+        Route::get('/static', function() {
+            return response()->json([
+                'success' => true,
+                'message' => 'Today\'s arrivals retrieved successfully',
+                'data' => [
+                    'arrivals' => [
+                        [
+                            'id' => 5,
+                            'title' => 'Fruits arrival',
+                            'description' => 'test',
+                            'arrival_date' => '2025-10-06',
+                            'arrival_date_formatted' => 'Oct 06, 2025',
+                            'poster_images' => ['https://testapp.muruganflowersuae.com/uploads/arrivals/1759734461_68e36abdef7c1.png'],
+                            'main_poster' => 'https://testapp.muruganflowersuae.com/uploads/arrivals/1759734461_68e36abdee91c.png',
+                            'products_count' => 2,
+                            'branches_count' => 1,
+                            'branches' => [
+                                [
+                                    'id' => 1,
+                                    'name' => 'Main Branch',
+                                    'phone' => '1234567890',
+                                    'whatsapp_number' => '1234567890',
+                                    'address' => 'Test Address',
+                                    'latitude' => null,
+                                    'longitude' => null
+                                ]
+                            ],
+                            'whatsapp_message' => 'Hi! I\'m interested in products from today\'s arrival.',
+                            'sort_order' => 0,
+                            'created_at' => '2025-10-06T07:07:41.000000Z',
+                            'updated_at' => '2025-10-06T07:07:41.000000Z'
+                        ]
+                    ],
+                    'total_count' => 1,
+                    'limit' => 10,
+                    'offset' => 0,
+                    'date' => '2025-10-06'
+                ]
+            ]);
+        });
+        
+        Route::get('/test', function() {
+            return response()->json([
+                'success' => true,
+                'message' => 'API routing is working',
+                'timestamp' => now(),
+            ]);
+        });
+        Route::get('/simple', function() {
+            try {
+                $arrivals = \App\Model\TodaysArrival::active()->appVisible()->get();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Simple arrivals retrieved',
+                    'count' => $arrivals->count(),
+                    'data' => $arrivals->map(function($arrival) {
+                        return [
+                            'id' => $arrival->id,
+                            'title' => $arrival->title,
+                            'branch_id_raw' => $arrival->branch_id,
+                            'product_ids_raw' => $arrival->product_ids,
+                        ];
+                    })
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                    'file' => basename($e->getFile())
+                ], 500);
+            }
+        });
+        Route::get('/controller-test', function() {
+            try {
+                $controller = new \App\Http\Controllers\Api\V1\TodaysArrivalController();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Controller can be instantiated',
+                    'controller_class' => get_class($controller)
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                    'file' => basename($e->getFile())
+                ], 500);
+            }
+        });
+        Route::get('/diagnose', function() {
+            $diagnostics = [];
+            
+            try {
+                // Test database connection
+                $diagnostics['database'] = \DB::connection()->getDatabaseName();
+                
+                // Test model classes
+                $diagnostics['models'] = [
+                    'TodaysArrival_exists' => class_exists(\App\Model\TodaysArrival::class),
+                    'TodaysArrivalBranch_exists' => class_exists(\App\Model\TodaysArrivalBranch::class),
+                    'Product_exists' => class_exists(\App\Model\Product::class),
+                ];
+                
+                // Test simple query
+                $count = \App\Model\TodaysArrival::count();
+                $diagnostics['arrivals_count'] = $count;
+                
+                // Test specific arrival
+                $arrival = \App\Model\TodaysArrival::first();
+                if ($arrival) {
+                    $diagnostics['sample_arrival'] = [
+                        'id' => $arrival->id,
+                        'title' => $arrival->title,
+                        'branch_id' => $arrival->branch_id,
+                        'branch_id_type' => gettype($arrival->branch_id),
+                        'product_ids' => $arrival->product_ids,
+                        'product_ids_type' => gettype($arrival->product_ids),
+                        'is_active' => $arrival->is_active,
+                        'show_in_app' => $arrival->show_in_app,
+                    ];
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'diagnostics' => $diagnostics
+                ]);
+                
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                    'file' => basename($e->getFile()),
+                    'diagnostics' => $diagnostics
+                ], 500);
+            }
+        });
+        Route::get('/', [TodaysArrivalController::class, 'index']);
+        Route::get('/branches', [TodaysArrivalController::class, 'branches']);
+        Route::get('/date-range', [TodaysArrivalController::class, 'getByDateRange']);
+        Route::get('/debug/{id}', function($id) {
+            $arrival = \App\Model\TodaysArrival::find($id);
+            if (!$arrival) {
+                return response()->json(['error' => 'Not found'], 404);
+            }
+            return response()->json([
+                'id' => $arrival->id,
+                'title' => $arrival->title,
+                'branch_id' => $arrival->branch_id,
+                'product_ids' => $arrival->product_ids,
+                'is_active' => $arrival->is_active,
+                'show_in_app' => $arrival->show_in_app,
+                'raw_attributes' => $arrival->getAttributes(),
+            ]);
+        });
+        Route::get('/{id}', [TodaysArrivalController::class, 'show']);
+        Route::post('/{id}/whatsapp-checkout', [TodaysArrivalController::class, 'whatsappCheckout']);
+    });
 
 });

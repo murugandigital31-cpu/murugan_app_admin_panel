@@ -26,6 +26,14 @@
                                         <label class="form-label mb-3" for="exampleFormControlInput1">{{translate('title')}}</label>
                                         <input type="text" name="title" class="form-control" value="{{old('title')}}" placeholder="{{ translate('Ex : New Notification') }}" required>
                                     </div>
+                                    <div class="form-group">
+                                        <label class="form-label mb-3" for="notification_type">{{translate('notification_type')}}</label>
+                                        <select name="notification_type" class="form-control" required>
+                                            <option value="">{{translate('Select Notification Type')}}</option>
+                                            <option value="general" {{ old('notification_type') == 'general' ? 'selected' : '' }}>{{translate('General Notification')}}</option>
+                                            <option value="todays_arrival" {{ old('notification_type') == 'todays_arrival' ? 'selected' : '' }}>{{translate('Today\'s Arrival')}}</option>
+                                        </select>
+                                    </div>
                                     <div class="form-group mb-0">
                                         <label class="form-label mb-3" for="exampleFormControlInput1">{{translate('description')}}
                                             <i class="tio-info-outined"
@@ -88,6 +96,7 @@
                                     <th>{{translate('#')}}</th>
                                     <th>{{translate('image')}}</th>
                                     <th>{{translate('title')}}</th>
+                                    <th>{{translate('type')}}</th>
                                     <th>{{translate('description')}}</th>
                                     <th class="text-center">{{translate('status')}}</th>
                                     <th class="text-center">{{translate('action')}}</th>
@@ -111,6 +120,11 @@
                                     <span class="d-block font-size-sm text-body">
                                         {{substr($notification['title'],0,25)}} {{strlen($notification['title'])>25?'...':''}}
                                     </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-soft-{{ $notification['type'] == 'todays_arrival' ? 'success' : 'primary' }}">
+                                            {{ $notification['type'] == 'todays_arrival' ? "Today's Arrival" : 'General' }}
+                                        </span>
                                     </td>
                                     <td>
                                         <div class="line--limit-2 max-200px ">

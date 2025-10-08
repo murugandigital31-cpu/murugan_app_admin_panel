@@ -57,6 +57,44 @@ class TodaysArrival extends Model
     }
 
     /**
+     * Scope to get only active arrivals
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope to get arrivals visible in mobile app
+     */
+    public function scopeAppVisible($query)
+    {
+        return $query->where('show_in_app', true);
+    }
+
+    /**
+     * Scope to filter arrivals by date
+     */
+    public function scopeForDate($query, $date)
+    {
+        return $query->whereDate('arrival_date', $date);
+    }
+
+    /**
+     * Scope to filter arrivals by branch
+     */
+    public function scopeForBranch($query, $branchId)
+    {
+        return $query->where(function($q) use ($branchId) {
+            // Handle both branch_id and arrival_branch_id for compatibility
+            $q->whereJsonContains('branch_id', $branchId)
+              ->orWhereJsonContains('branch_id', (string)$branchId)
+              ->orWhereJsonContains('arrival_branch_id', $branchId)
+              ->orWhereJsonContains('arrival_branch_id', (string)$branchId);
+        });
+    }
+
+    /**
      * Get main poster URL
      */
     public function getMainPosterUrlAttribute()
@@ -72,9 +110,17 @@ class TodaysArrival extends Model
                 return asset('storage/arrivals/' . $this->main_poster);
             }
             
-            // Fallback to direct storage access
+            // If file exists in storage but not in public, copy it to public uploads
             if (file_exists(storage_path('app/public/arrivals/' . $this->main_poster))) {
-                return asset('storage/app/public/arrivals/' . $this->main_poster);
+                $sourceFile = storage_path('app/public/arrivals/' . $this->main_poster);
+                $targetDir = public_path('uploads/arrivals');
+                if (!file_exists($targetDir)) {
+                    mkdir($targetDir, 0755, true);
+                }
+                $targetFile = $targetDir . '/' . $this->main_poster;
+                if (copy($sourceFile, $targetFile)) {
+                    return asset('uploads/arrivals/' . $this->main_poster);
+                }
             }
         }
         return asset('public/assets/admin/img/no-image.jpg');
@@ -100,13 +146,29 @@ class TodaysArrival extends Model
                 return asset('storage/arrivals/' . $image);
             }
             
-            // Fallback to direct storage access
+            // If file exists in storage but not in public, copy it to public uploads
             if (file_exists(storage_path('app/public/arrivals/' . $image))) {
-                return asset('storage/app/public/arrivals/' . $image);
+                $sourceFile = storage_path('app/public/arrivals/' . $image);
+                $targetDir = public_path('uploads/arrivals');
+                if (!file_exists($targetDir)) {
+                    mkdir($targetDir, 0755, true);
+                }
+                $targetFile = $targetDir . '/' . $image;
+                if (copy($sourceFile, $targetFile)) {
+                    return asset('uploads/arrivals/' . $image);
+                }
             }
             
             return asset('public/assets/admin/img/no-image.jpg');
         }, $this->poster_images);
+    }
+
+    /**
+     * Get branch ID for API compatibility
+     */
+    public function getBranchIdAttribute()
+    {
+        return $this->arrival_branch_id;
     }
 
     /**

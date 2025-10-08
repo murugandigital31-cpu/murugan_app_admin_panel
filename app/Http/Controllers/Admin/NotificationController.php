@@ -54,9 +54,11 @@ class NotificationController extends Controller
         $request->validate([
             'title' => 'required|max:255',
             'description' => 'required|max:255',
-            'image'=> 'required'
+            'image'=> 'required',
+            'notification_type' => 'required|in:general,todays_arrival'
         ], [
             'title.required' => 'title is required!',
+            'notification_type.required' => 'notification type is required!',
         ]);
 
         if ($request->has('image')) {
@@ -69,11 +71,12 @@ class NotificationController extends Controller
         $notification->title = $request->title;
         $notification->description = $request->description;
         $notification->image = $imageName;
+        $notification->type = $request->notification_type; // Store the notification type
         $notification->status = 1;
         $notification->save();
 
         try {
-            $notification->type = 'general';
+            // Use your existing working Firebase method
             Helpers::send_push_notif_to_topic($notification, 'grofresh');
             Toastr::success(translate('Notification sent successfully!'));
         } catch (\Exception $e) {

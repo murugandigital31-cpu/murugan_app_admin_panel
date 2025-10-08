@@ -7,6 +7,13 @@ use Illuminate\Support\Facades\Storage;
 
 class Notification extends Model
 {
+    protected $fillable = [
+        'title',
+        'description', 
+        'image',
+        'type',
+        'status'
+    ];
 
     protected $casts = [
         'status' => 'integer',
