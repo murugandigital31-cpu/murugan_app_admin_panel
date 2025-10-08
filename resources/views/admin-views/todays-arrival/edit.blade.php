@@ -48,16 +48,43 @@
                                 </div>
                                 <div class="col-12">
                                     <div class="form-group mb-3">
-                                        <label class="input-label" for="product_ids">{{translate('Products')}} 
-                                            <span class="input-label-secondary">*</span></label>
-                                        <select name="product_ids[]" class="form-control js-select2-custom" multiple required>
+                                        <label class="input-label" for="category_filter">{{translate('Filter by Category')}}
+                                            <span class="text-muted">({{translate('Optional')}})</span></label>
+                                        <select id="categoryFilter" class="form-control">
+                                            <option value="">{{translate('All Categories')}}</option>
+                                            @foreach($categories as $category)
+                                                <option value="{{$category['id']}}">{{$category['name']}}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">{{translate('Filter products by category for easier selection')}}</small>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="input-label mb-0" for="product_ids">{{translate('Products')}}
+                                                <span class="input-label-secondary">*</span>
+                                                <small class="text-muted">({{translate('Currently selected')}}: <span id="selectedCount">0</span>)</small>
+                                            </label>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-success" onclick="showBulkAddModal()">
+                                                    <i class="tio-add"></i> {{translate('Bulk Add')}}
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="showBulkRemoveModal()">
+                                                    <i class="tio-delete"></i> {{translate('Bulk Remove')}}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <select name="product_ids[]" id="productSelect" class="form-control js-select2-custom" multiple required>
                                             @foreach($products as $product)
                                                 @php
-                                                    $selectedProducts = is_array($arrival->product_ids) ? $arrival->product_ids : 
+                                                    $selectedProducts = is_array($arrival->product_ids) ? $arrival->product_ids :
                                                                        (is_string($arrival->product_ids) ? json_decode($arrival->product_ids, true) : []);
                                                     $isSelected = is_array($selectedProducts) && in_array($product['id'], $selectedProducts);
                                                 @endphp
-                                                <option value="{{$product['id']}}" {{$isSelected ? 'selected' : ''}}>
+                                                <option value="{{$product['id']}}"
+                                                        data-category="{{$product['category_ids'] ?? ''}}"
+                                                        {{$isSelected ? 'selected' : ''}}>
                                                     {{$product['name']}}
                                                 </option>
                                             @endforeach
@@ -221,6 +248,92 @@
     </div>
 @endsection
 
+<!-- Bulk Add Products Modal -->
+<div class="modal fade" id="bulkAddModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{translate('Bulk Add Products')}}</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form action="{{route('admin.todays-arrival.bulk-add', $arrival->id)}}" method="post">
+                @csrf
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label>{{translate('Filter by Category')}}</label>
+                        <select id="bulkAddCategoryFilter" class="form-control">
+                            <option value="">{{translate('All Categories')}}</option>
+                            @foreach($categories as $category)
+                                <option value="{{$category['id']}}">{{$category['name']}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>{{translate('Select Products to Add')}}</label>
+                        <select name="product_ids[]" id="bulkAddSelect" class="form-control js-select2-custom" multiple required>
+                            @foreach($products as $product)
+                                <option value="{{$product['id']}}" data-category="{{$product['category_ids'] ?? ''}}">
+                                    {{$product['name']}}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">{{translate('Select multiple products to add at once')}}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{translate('Cancel')}}</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="tio-add"></i> {{translate('Add Products')}}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Remove Products Modal -->
+<div class="modal fade" id="bulkRemoveModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{translate('Bulk Remove Products')}}</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form action="{{route('admin.todays-arrival.bulk-remove', $arrival->id)}}" method="post">
+                @csrf
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>{{translate('Select Products to Remove')}}</label>
+                        <select name="product_ids[]" id="removeProductSelect" class="form-control js-select2-custom" multiple required>
+                            @foreach($products as $product)
+                                @php
+                                    $selectedProducts = is_array($arrival->product_ids) ? $arrival->product_ids :
+                                                       (is_string($arrival->product_ids) ? json_decode($arrival->product_ids, true) : []);
+                                    $isSelected = is_array($selectedProducts) && in_array($product['id'], $selectedProducts);
+                                @endphp
+                                @if($isSelected)
+                                    <option value="{{$product['id']}}">{{$product['name']}}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <small class="text-muted">{{translate('Select multiple products to remove at once')}}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{translate('Cancel')}}</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="tio-delete"></i> {{translate('Remove Products')}}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @push('script_2')
     <script>
         $(document).ready(function () {
@@ -244,13 +357,94 @@
                     reader.readAsDataURL(input.files[0]);
                 }
             }
+
+            // Update selected count
+            updateSelectedCount();
+            $('#productSelect').on('change', function() {
+                updateSelectedCount();
+            });
+
+            // Category filter functionality
+            $('#categoryFilter').on('change', function() {
+                filterProductsByCategory($(this).val());
+            });
+
+            // Bulk add modal category filter
+            $('#bulkAddCategoryFilter').on('change', function() {
+                filterBulkAddProductsByCategory($(this).val());
+            });
         });
+
+        function updateSelectedCount() {
+            const count = $('#productSelect').val() ? $('#productSelect').val().length : 0;
+            $('#selectedCount').text(count);
+        }
+
+        function filterProductsByCategory(categoryId) {
+            const $productSelect = $('#productSelect');
+            const $options = $productSelect.find('option');
+
+            if (!categoryId) {
+                // Show all products
+                $options.show();
+            } else {
+                // Hide/show products based on category
+                $options.each(function() {
+                    const $option = $(this);
+                    const productCategories = $option.data('category');
+
+                    // Check if product belongs to selected category
+                    if (productCategories && productCategories.toString().includes(categoryId)) {
+                        $option.show();
+                    } else {
+                        $option.hide();
+                    }
+                });
+            }
+
+            // Refresh Select2 to show filtered options
+            $productSelect.trigger('change.select2');
+        }
+
+        function filterBulkAddProductsByCategory(categoryId) {
+            const $bulkAddSelect = $('#bulkAddSelect');
+            const $options = $bulkAddSelect.find('option');
+
+            if (!categoryId) {
+                // Show all products
+                $options.show();
+            } else {
+                // Hide/show products based on category
+                $options.each(function() {
+                    const $option = $(this);
+                    const productCategories = $option.data('category');
+
+                    // Check if product belongs to selected category
+                    if (productCategories && productCategories.toString().includes(categoryId)) {
+                        $option.show();
+                    } else {
+                        $option.hide();
+                    }
+                });
+            }
+
+            // Refresh Select2 to show filtered options
+            $bulkAddSelect.trigger('change.select2');
+        }
 
         function removeCurrentImage(index, filename) {
             if (confirm('{{translate("Are you sure you want to remove this image?")}}')) {
                 $('#currentImage' + index).remove();
                 $('#existing' + index).remove();
             }
+        }
+
+        function showBulkAddModal() {
+            $('#bulkAddModal').modal('show');
+        }
+
+        function showBulkRemoveModal() {
+            $('#bulkRemoveModal').modal('show');
         }
     </script>
 @endpush

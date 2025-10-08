@@ -208,42 +208,68 @@ class TodaysArrivalController extends Controller
     /**
      * Main API endpoint for today's arrivals
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
             $arrivals = [];
-            
+            $date = $request->get('date');
+            $branchId = $request->get('branch_id');
+
             // Try to get data from database
             try {
                 if (class_exists('App\Model\TodaysArrival')) {
-                    $data = \App\Model\TodaysArrival::active()
-                        ->appVisible()
-                        ->orderBy('sort_order', 'asc')
+                    $query = \App\Model\TodaysArrival::active()->appVisible();
+
+                    // Filter by date if provided
+                    if ($date) {
+                        $query->forDate($date);
+                    }
+
+                    // Filter by branch if provided
+                    if ($branchId) {
+                        $query->forBranch($branchId);
+                    }
+
+                    $data = $query->orderBy('sort_order', 'asc')
                         ->orderBy('arrival_date', 'desc')
-                        ->take(10)
                         ->get();
                 } elseif (class_exists('App\Models\TodaysArrival')) {
-                    $data = \App\Models\TodaysArrival::where('is_active', true)
-                        ->where('show_in_app', true)
-                        ->orderBy('arrival_date', 'desc')
-                        ->take(10)
+                    $query = \App\Models\TodaysArrival::where('is_active', true)
+                        ->where('show_in_app', true);
+
+                    // Filter by date if provided
+                    if ($date) {
+                        $query->whereDate('arrival_date', $date);
+                    }
+
+                    // Filter by branch if provided
+                    if ($branchId) {
+                        $query->whereJsonContains('branch_id', (int)$branchId);
+                    }
+
+                    $data = $query->orderBy('arrival_date', 'desc')
                         ->get();
                 } else {
                     $data = collect();
                 }
-                
+
                 foreach ($data as $arrival) {
                     $arrivals[] = $this->formatArrivalData($arrival);
                 }
             } catch (\Exception $dbError) {
                 $arrivals = [];
+                \Log::error('TodaysArrival index error: ' . $dbError->getMessage());
             }
 
             $response = [
                 'arrivals' => $arrivals,
                 'status' => true,
                 'message' => 'Today\'s arrivals retrieved successfully',
-                'count' => count($arrivals)
+                'count' => count($arrivals),
+                'filters' => [
+                    'date' => $date,
+                    'branch_id' => $branchId
+                ]
             ];
 
             return response()->json($response, 200, [
@@ -371,30 +397,43 @@ class TodaysArrivalController extends Controller
     }
 
     /**
-     * Get branches
+     * Get Today's Arrival branches (from todays_arrival_branches table)
      */
     public function branches(): JsonResponse
     {
         try {
             $branches = [];
-            
-            if (class_exists('App\Model\Branch')) {
-                $data = \App\Model\Branch::where('status', 1)->get();
+
+            // Get Today's Arrival specific branches
+            if (class_exists('App\Model\TodaysArrivalBranch')) {
+                $data = \App\Model\TodaysArrivalBranch::where('is_active', true)
+                    ->orderBy('name', 'asc')
+                    ->get();
+
                 foreach ($data as $branch) {
                     $branches[] = [
                         'id' => (int) $branch->id,
                         'name' => (string) ($branch->name ?? 'Unknown Branch'),
-                        'phone' => (string) ($branch->phone ?? ''),
+                        'phone' => (string) ($branch->whatsapp_number ?? ''),
+                        'whatsapp_number' => (string) ($branch->whatsapp_number ?? ''),
                         'address' => (string) ($branch->address ?? ''),
+                        'contact_person' => (string) ($branch->contact_person ?? ''),
+                        'location' => (string) ($branch->location ?? ''),
                     ];
                 }
-            } else {
+            }
+
+            // Fallback if no branches found
+            if (empty($branches)) {
                 $branches = [
                     [
                         'id' => 1,
                         'name' => 'Main Branch',
-                        'phone' => '1234567890',
-                        'address' => 'Main Address'
+                        'phone' => '',
+                        'whatsapp_number' => '',
+                        'address' => 'Main Address',
+                        'contact_person' => '',
+                        'location' => ''
                     ]
                 ];
             }
@@ -402,13 +441,13 @@ class TodaysArrivalController extends Controller
             return response()->json([
                 'branches' => $branches,
                 'status' => true,
-                'message' => 'Branches retrieved successfully'
+                'message' => 'Today\'s Arrival branches retrieved successfully'
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Error retrieving branches',
+                'message' => 'Error retrieving branches: ' . $e->getMessage(),
                 'branches' => []
             ], 500);
         }

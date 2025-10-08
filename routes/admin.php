@@ -523,6 +523,9 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('preview/{id}', [TodaysArrivalController::class, 'preview'])->name('preview');
             Route::delete('delete/{id}', [TodaysArrivalController::class, 'delete'])->name('delete');
             Route::get('status/{id}/{status}', [TodaysArrivalController::class, 'status'])->name('status');
+            // Bulk operations
+            Route::post('bulk-add/{id}', [TodaysArrivalController::class, 'bulkAddProducts'])->name('bulk-add');
+            Route::post('bulk-remove/{id}', [TodaysArrivalController::class, 'bulkRemoveProducts'])->name('bulk-remove');
         });
 
         Route::group(['prefix' => 'todays-arrival-branch', 'as' => 'todays-arrival-branch.'], function () {

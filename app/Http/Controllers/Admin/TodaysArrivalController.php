@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TodaysArrival;
 use App\Model\TodaysArrivalBranch;
 use App\Model\Product;
+use App\Model\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -24,15 +25,21 @@ class TodaysArrivalController extends Controller
 
         // Get Today's Arrival Branches (from todays_arrival_branches table)
         $branches = TodaysArrivalBranch::where('is_active', true)->get();
-        
+
         // If no active branches, get all branches for testing
         if ($branches->isEmpty()) {
             $branches = TodaysArrivalBranch::all();
         }
-        
+
+        // Get categories for filtering
+        $categories = Category::where('status', 1)
+            ->whereNull('parent_id')
+            ->orderBy('name', 'asc')
+            ->get();
+
         $products = Product::where('status', 1)->get();
-        
-        return view('admin-views.todays-arrival.index', compact('arrivals', 'branches', 'products', 'search'));
+
+        return view('admin-views.todays-arrival.index', compact('arrivals', 'branches', 'categories', 'products', 'search'));
     }
 
     public function store(Request $request)
@@ -93,9 +100,16 @@ class TodaysArrivalController extends Controller
     {
         $arrival = TodaysArrival::findOrFail($id);
         $branches = TodaysArrivalBranch::where('is_active', true)->get();
+
+        // Get categories for filtering
+        $categories = Category::where('status', 1)
+            ->whereNull('parent_id')
+            ->orderBy('name', 'asc')
+            ->get();
+
         $products = Product::where('status', 1)->get();
-        
-        return view('admin-views.todays-arrival.edit', compact('arrival', 'branches', 'products'));
+
+        return view('admin-views.todays-arrival.edit', compact('arrival', 'branches', 'categories', 'products'));
     }
 
     public function update(Request $request, $id)
@@ -207,6 +221,82 @@ class TodaysArrivalController extends Controller
         $statusText = $status ? translate('activated') : translate('deactivated');
         return redirect()->back()
             ->with('success', translate('Today\'s arrival') . ' ' . $statusText . ' ' . translate('successfully!'));
+    }
+
+    /**
+     * Bulk add products to an existing arrival
+     */
+    public function bulkAddProducts(Request $request, $id)
+    {
+        $arrival = TodaysArrival::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        // Get current product IDs
+        $currentProductIds = is_array($arrival->product_ids)
+            ? $arrival->product_ids
+            : (is_string($arrival->product_ids) ? json_decode($arrival->product_ids, true) : []);
+
+        if (!is_array($currentProductIds)) {
+            $currentProductIds = [];
+        }
+
+        // Merge with new product IDs (avoiding duplicates)
+        $newProductIds = array_unique(array_merge($currentProductIds, $request->product_ids));
+
+        $arrival->update([
+            'product_ids' => $newProductIds,
+        ]);
+
+        $addedCount = count($newProductIds) - count($currentProductIds);
+
+        return redirect()->back()
+            ->with('success', translate('Successfully added') . ' ' . $addedCount . ' ' . translate('products to today\'s arrival!'));
+    }
+
+    /**
+     * Bulk remove products from an existing arrival
+     */
+    public function bulkRemoveProducts(Request $request, $id)
+    {
+        $arrival = TodaysArrival::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        // Get current product IDs
+        $currentProductIds = is_array($arrival->product_ids)
+            ? $arrival->product_ids
+            : (is_string($arrival->product_ids) ? json_decode($arrival->product_ids, true) : []);
+
+        if (!is_array($currentProductIds)) {
+            $currentProductIds = [];
+        }
+
+        // Remove specified product IDs
+        $newProductIds = array_values(array_diff($currentProductIds, $request->product_ids));
+
+        $arrival->update([
+            'product_ids' => $newProductIds,
+        ]);
+
+        $removedCount = count($currentProductIds) - count($newProductIds);
+
+        return redirect()->back()
+            ->with('success', translate('Successfully removed') . ' ' . $removedCount . ' ' . translate('products from today\'s arrival!'));
     }
 
     /**

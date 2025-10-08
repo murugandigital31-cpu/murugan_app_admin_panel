@@ -50,9 +50,11 @@ Route::group(['prefix' => 'todays-arrivals', 'middleware' => ['localization']], 
     
     // Main endpoints
     Route::get('/', [TodaysArrivalController::class, 'index']);
-    Route::get('/{id}', [TodaysArrivalController::class, 'show']);
-    Route::get('/date-range', [TodaysArrivalController::class, 'getByDateRange']);
+    // Specific routes MUST come before parameterized routes
     Route::get('/branches', [TodaysArrivalController::class, 'branches']);
+    Route::get('/date-range', [TodaysArrivalController::class, 'getByDateRange']);
+    // Parameterized routes come last
+    Route::get('/{id}', [TodaysArrivalController::class, 'show']);
     Route::post('/{id}/whatsapp-checkout', [TodaysArrivalController::class, 'whatsappCheckout']);
 });
 
