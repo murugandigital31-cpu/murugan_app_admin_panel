@@ -4,8 +4,18 @@
 
 @push('css_or_js')
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link href="{{asset('public/assets/admin/css/tags-input.min.css')}}" rel="stylesheet">
+    <link href="{{asset('public/assets/admin/css/tags-input.min.css')}}?v={{ time() }}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+    <style>
+        /* Prevent duplicate elements */
+        .bootstrap-tagsinput {
+            display: block !important;
+        }
+        /* Hide duplicate tagsinput containers */
+        .bootstrap-tagsinput + .bootstrap-tagsinput {
+            display: none !important;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -232,7 +242,7 @@
                             <div class="row g-3">
                                 <div class="col-12">
                                     <div class="form-group">
-                                        <input type="text" class="form-control" name="tags" placeholder="Enter tags" value="@foreach($product->tags as $c) {{$c->tag.','}} @endforeach" data-role="tagsinput">
+                                        <input type="text" class="form-control" name="tags" placeholder="Enter tags" value="{{ $product->tags->pluck('tag')->implode(',') }}" data-role="tagsinput">
                                     </div>
                                 </div>
                             </div>
@@ -409,40 +419,45 @@
         })
     </script>
     <script type="text/javascript">
+        var spartanInitialized = false;
         $(function () {
-            $("#coba").spartanMultiImagePicker({
-                fieldName: 'images[]',
-                maxCount: 4,
-                rowHeight: '150px',
-                groupClassName: '',
-                maxFileSize: '',
-                placeholderImage: {
-                    image: '{{asset('/public/assets/admin/img/upload-en.png')}}',
-                    width: '100%'
-                },
-                dropFileLabel: "Drop Here",
-                onAddRow: function (index, file) {
+            // Prevent double initialization
+            if (!spartanInitialized && $("#coba").length > 0) {
+                $("#coba").spartanMultiImagePicker({
+                    fieldName: 'images[]',
+                    maxCount: 4,
+                    rowHeight: '150px',
+                    groupClassName: '',
+                    maxFileSize: '',
+                    placeholderImage: {
+                        image: '{{asset('/public/assets/admin/img/upload-en.png')}}',
+                        width: '100%'
+                    },
+                    dropFileLabel: "Drop Here",
+                    onAddRow: function (index, file) {
 
-                },
-                onRenderedPreview: function (index) {
+                    },
+                    onRenderedPreview: function (index) {
 
-                },
-                onRemoveRow: function (index) {
+                    },
+                    onRemoveRow: function (index) {
 
-                },
-                onExtensionErr: function (index, file) {
-                    toastr.error('Please only input png or jpg type file', {
-                        CloseButton: true,
-                        ProgressBar: true
-                    });
-                },
-                onSizeErr: function (index, file) {
-                    toastr.error('File size too big', {
-                        CloseButton: true,
-                        ProgressBar: true
-                    });
-                }
-            });
+                    },
+                    onExtensionErr: function (index, file) {
+                        toastr.error('Please only input png or jpg type file', {
+                            CloseButton: true,
+                            ProgressBar: true
+                        });
+                    },
+                    onSizeErr: function (index, file) {
+                        toastr.error('File size too big', {
+                            CloseButton: true,
+                            ProgressBar: true
+                        });
+                    }
+                });
+                spartanInitialized = true;
+            }
         });
     </script>
 
@@ -469,27 +484,137 @@
     </script>
 
     <script>
+        var select2Initialized = false;
         $(document).on('ready', function () {
-            $('.js-select2-custom').each(function () {
-                var select2 = $.HSCore.components.HSSelect2.init($(this));
-            });
+            if (!select2Initialized) {
+                $('.js-select2-custom').each(function () {
+                    // Check if select2 is already initialized
+                    if (!$(this).hasClass("select2-hidden-accessible")) {
+                        var select2 = $.HSCore.components.HSSelect2.init($(this));
+                    }
+                });
+                select2Initialized = true;
+            }
         });
     </script>
 
-    <script src="{{asset('public/assets/admin')}}/js/tags-input.min.js"></script>
+    <script src="{{asset('public/assets/admin')}}/js/tags-input.min.js?v={{ time() }}"></script>
 
     <script>
-        $('#choice_attributes').on('change', function () {
-            $('#customer_choice_options').html(null);
-            $.each($("#choice_attributes option:selected"), function () {
-                add_more_customer_choice_option($(this).val(), $(this).text());
+        // Clean up any duplicate elements on page load
+        $(document).ready(function() {
+            // Remove duplicate bootstrap-tagsinput containers
+            $('.bootstrap-tagsinput').each(function(index) {
+                if (index > 0 && $(this).prev().hasClass('bootstrap-tagsinput')) {
+                    $(this).remove();
+                }
+            });
+
+            // Remove duplicate spartan upload boxes
+            $('.spartan_item_wrapper').each(function() {
+                var src = $(this).find('img').attr('src');
+                var duplicates = $('.spartan_item_wrapper').filter(function() {
+                    return $(this).find('img').attr('src') === src;
+                });
+                if (duplicates.length > 1) {
+                    duplicates.slice(1).remove();
+                }
+            });
+
+            // Remove duplicate attribute input rows
+            $('#customer_choice_options .row').each(function() {
+                var choiceNo = $(this).find('input[name="choice_no[]"]').val();
+                var duplicates = $('#customer_choice_options .row').filter(function() {
+                    return $(this).find('input[name="choice_no[]"]').val() === choiceNo;
+                });
+                if (duplicates.length > 1) {
+                    duplicates.slice(1).remove();
+                }
             });
         });
 
-        function add_more_customer_choice_option(i, name) {
+        var tagsInputInitialized = false;
+
+        // Initialize tagsinput for existing choice options on page load
+        $(document).ready(function() {
+            // Prevent double initialization
+            if (!tagsInputInitialized) {
+                setTimeout(function() {
+                    // Initialize only inputs that don't have tagsinput already
+                    $('input[data-role=tagsinput]').each(function() {
+                        var $this = $(this);
+                        // Check if tagsinput is already initialized
+                        if (!$this.parent().hasClass('bootstrap-tagsinput') && !$this.data('tagsinput-init')) {
+                            $this.tagsinput();
+                            $this.data('tagsinput-init', true);
+                        }
+                    });
+
+                    // Trigger combination update if there are existing attributes
+                    if ($('#customer_choice_options .row').length > 0) {
+                        combination_update();
+                    }
+
+                    tagsInputInitialized = true;
+                }, 500);
+            }
+        });
+
+        $('#choice_attributes').on('change', function () {
+            // Get currently selected attribute IDs
+            var selectedAttributes = $(this).val() || [];
+
+            // Get existing choice numbers to preserve their values
+            var existingChoices = {};
+            $('#customer_choice_options .row').each(function() {
+                var choiceNo = $(this).find('input[name="choice_no[]"]').val();
+                var $input = $(this).find('input[data-role="tagsinput"]');
+
+                // Check if tagsinput is initialized
+                if ($input.parent().hasClass('bootstrap-tagsinput')) {
+                    var choiceValue = $input.tagsinput('items');
+                    if (choiceNo && choiceValue) {
+                        existingChoices[choiceNo] = choiceValue;
+                    }
+                }
+            });
+
+            // Destroy existing tagsinput instances before clearing
+            $('#customer_choice_options input[data-role="tagsinput"]').each(function() {
+                if ($(this).parent().hasClass('bootstrap-tagsinput')) {
+                    $(this).tagsinput('destroy');
+                }
+            });
+
+            // Clear and rebuild
+            $('#customer_choice_options').html(null);
+
+            $.each($("#choice_attributes option:selected"), function () {
+                var attrId = $(this).val();
+                var attrName = $(this).text();
+                add_more_customer_choice_option(attrId, attrName, existingChoices[attrId]);
+            });
+        });
+
+        function add_more_customer_choice_option(i, name, existingValues) {
             let n = name.split(' ').join('');
-            $('#customer_choice_options').append('<div class="row"><div class="col-md-3"><input type="hidden" name="choice_no[]" value="' + i + '"><input type="text" class="form-control" name="choice[]" value="' + n + '" placeholder="Choice Title" readonly></div><div class="col-lg-9"><input type="text" class="form-control" name="choice_options_' + i + '[]" placeholder="Enter choice values" data-role="tagsinput" onchange="combination_update()"></div></div>');
-            $("input[data-role=tagsinput], select[multiple][data-role=tagsinput]").tagsinput();
+            $('#customer_choice_options').append('<div class="row g-1"><div class="col-md-3 col-sm-4"><input type="hidden" name="choice_no[]" value="' + i + '"><input type="text" class="form-control" name="choice[]" value="' + n + '" placeholder="Choice Title" readonly></div><div class="col-lg-9 col-sm-8"><input type="text" class="form-control choice-option-input" name="choice_options_' + i + '[]" placeholder="Enter choice values" data-role="tagsinput" onchange="combination_update()"></div></div>');
+
+            // Initialize tagsinput for the newly added input
+            var $newInput = $('#customer_choice_options').find('input[name="choice_options_' + i + '[]"]').last();
+
+            // Only initialize if not already initialized
+            if (!$newInput.parent().hasClass('bootstrap-tagsinput') && !$newInput.data('tagsinput-init')) {
+                $newInput.tagsinput();
+                $newInput.data('tagsinput-init', true);
+
+                // If there are existing values, add them
+                if (existingValues && Array.isArray(existingValues)) {
+                    existingValues.forEach(function(value) {
+                        $newInput.tagsinput('add', value);
+                    });
+                }
+            }
         }
 
         function combination_update() {
@@ -505,6 +630,7 @@
                 data: $('#product_form').serialize(),
                 success: function (data) {
                     $('#variant_combination').html(data.view);
+                    update_qty(); // Update total stock after combinations are loaded
                     if (data.length > 1) {
                         $('#quantity').hide();
                     } else {
@@ -586,13 +712,15 @@
             var qty_elements = $('input[name^="stock_"]');
             for(var i=0; i<qty_elements.length; i++)
             {
-                total_qty += parseInt(qty_elements.eq(i).val());
+                var val = qty_elements.eq(i).val();
+                if(val && !isNaN(val)) {
+                    total_qty += parseInt(val);
+                }
             }
             if(qty_elements.length > 0)
             {
                 $('input[name="total_stock"]').attr("readonly", true);
                 $('input[name="total_stock"]').val(total_qty);
-                console.log(total_qty)
             }
             else{
                 $('input[name="total_stock"]').attr("readonly", false);

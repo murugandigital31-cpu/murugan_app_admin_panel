@@ -265,8 +265,12 @@ class ProductController extends Controller
                 }
                 $item = [];
                 $item['type'] = $str;
-                $item['price'] = abs($request['price_' . str_replace('.', '_', $str)]);
-                $item['stock'] = abs($request['stock_' . str_replace('.', '_', $str)]);
+
+                // Sanitize variant type for input name matching
+                $sanitizedStr = str_replace([' ', '.', '-'], '_', $str);
+
+                $item['price'] = abs($request['price_' . $sanitizedStr] ?? 0);
+                $item['stock'] = abs($request['stock_' . $sanitizedStr] ?? 0);
 
                 if ($request['discount_type'] == 'amount' && $item['price'] <= $request['discount'] ){
                     $validator->getMessageBag()->add('discount_mismatch', 'Discount can not be more or equal to the price. Please change variant '. $item['type'] .' price or change discount amount!');
@@ -280,7 +284,7 @@ class ProductController extends Controller
         }
 
         if ((integer)$request['total_stock'] != $stockCount) {
-            $validator->getMessageBag()->add('total_stock', 'Stock calculation mismatch!');
+            $validator->getMessageBag()->add('total_stock', 'Stock calculation mismatch! Expected: ' . $request['total_stock'] . ', Got: ' . $stockCount);
         }
 
         if ($validator->getMessageBag()->count() > 0) {
@@ -507,8 +511,12 @@ class ProductController extends Controller
                 }
                 $item = [];
                 $item['type'] = $str;
-                $item['price'] = abs($request['price_' . str_replace('.', '_', $str)]);
-                $item['stock'] = abs($request['stock_' . str_replace('.', '_', $str)]);
+
+                // Sanitize variant type for input name matching
+                $sanitizedStr = str_replace([' ', '.', '-'], '_', $str);
+
+                $item['price'] = abs($request['price_' . $sanitizedStr] ?? 0);
+                $item['stock'] = abs($request['stock_' . $sanitizedStr] ?? 0);
 
                 if ($request['discount_type'] == 'amount' && $item['price'] <= $request['discount'] ){
                     $validator->getMessageBag()->add('discount_mismatch', 'Discount can not be more or equal to the price. Please change variant '. $item['type'] .' price or change discount amount!');
@@ -522,7 +530,7 @@ class ProductController extends Controller
         }
 
         if ((integer)$request['total_stock'] != $stockCount) {
-            $validator->getMessageBag()->add('total_stock', 'Stock calculation mismatch!');
+            $validator->getMessageBag()->add('total_stock', 'Stock calculation mismatch! Expected: ' . $request['total_stock'] . ', Got: ' . $stockCount);
         }
 
         if ($validator->getMessageBag()->count() > 0) {
