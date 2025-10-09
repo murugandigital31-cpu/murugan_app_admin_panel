@@ -117,11 +117,14 @@
                                     <label class="input-label"
                                         for="exampleFormControlInput1">{{translate('unit')}}</label>
                                     <select name="unit" class="form-control js-select2-custom">
-                                        <option value="kg">{{translate('kg')}}</option>
-                                        <option value="gm">{{translate('gm')}}</option>
-                                        <option value="ltr">{{translate('ltr')}}</option>
-                                        <option value="pc">{{translate('pc')}}</option>
-                                        <option value="ml">{{translate('ml')}}</option>
+                                        @php($units = \App\Model\Unit::active()->ordered()->get())
+                                        @forelse($units as $unit)
+                                            <option value="{{$unit->unit_short_name}}">
+                                                {{$unit->unit_name}} ({{$unit->unit_short_name}})
+                                            </option>
+                                        @empty
+                                            <option value="pc">{{translate('Piece (pc)')}}</option>
+                                        @endforelse
                                     </select>
                                 </div>
                             </div>

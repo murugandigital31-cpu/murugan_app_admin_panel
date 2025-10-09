@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\DeliveryChargeSetupController;
 use App\Http\Controllers\Admin\WeightSettingsController;
 use App\Http\Controllers\Admin\TodaysArrivalController;
 use App\Http\Controllers\Admin\TodaysArrivalBranchController;
+use App\Http\Controllers\Admin\UnitController;
 
 Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
     Route::get('lang/{locale}', [LanguageController::class, 'lang'])->name('lang');
@@ -337,6 +338,17 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
                     Route::post('change-extra-charge-on-weight-status', [WeightSettingsController::class, 'changeExtraChargeOnWeightStatus'])->name('change-extra-charge-on-weight-status');
                     Route::post('store-weight-charge', [WeightSettingsController::class, 'storeWeightCharge'])->name('store-weight-charge');
                 });
+            });
+
+            // Unit Management Routes
+            Route::group(['prefix' => 'unit', 'as' => 'unit.'], function () {
+                Route::get('management', [UnitController::class, 'index'])->name('index');
+                Route::post('store', [UnitController::class, 'store'])->name('store');
+                Route::get('edit/{id}', [UnitController::class, 'edit'])->name('edit');
+                Route::post('update', [UnitController::class, 'update'])->name('update');
+                Route::get('toggle-status/{id}', [UnitController::class, 'toggleStatus'])->name('toggle-status');
+                Route::delete('delete/{id}', [UnitController::class, 'destroy'])->name('delete');
+                Route::post('update-sort-order', [UnitController::class, 'updateSortOrder'])->name('update-sort-order');
             });
 
             Route::group(['prefix'=>'web-app','as'=>'web-app.'], function() {
