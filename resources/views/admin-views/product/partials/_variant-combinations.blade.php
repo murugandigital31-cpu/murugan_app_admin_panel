@@ -10,7 +10,9 @@
                     <label for="" class="control-label">{{ translate('Variant Price') }}</label>
                 </td>
                 <td class="text-center">
-                    <label for="" class="control-label">{{ translate('Variant Stock') }}</label>
+                    <label for="" class="control-label">{{ translate('Variant Stock') }}
+                        <small class="text-muted">(0 = Out of Stock)</small>
+                    </label>
                 </td>
             </tr>
             </thead>
@@ -41,7 +43,7 @@
                         </td>
                         <td>
                             <input type="number" name="stock_{{ $sanitizedStr }}" value="0" min="0" max="1000000"
-                                   class="form-control variant-stock" onkeyup="update_qty()" required>
+                                   class="form-control variant-stock" onkeyup="update_qty()" onchange="update_qty()" required>
                         </td>
                     </tr>
                 @endif

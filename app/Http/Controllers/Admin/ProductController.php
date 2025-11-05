@@ -164,7 +164,7 @@ class ProductController extends Controller
             'name' => 'required',
             'category_id' => 'required',
             'images' => 'required',
-            'total_stock' => 'required|numeric|min:1',
+            'total_stock' => 'required|numeric|min:0', // Allow 0 for out-of-stock products
             'price' => 'required|numeric|min:0',
         ], [
             'name.required' => translate('Product name is required!'),
@@ -283,6 +283,7 @@ class ProductController extends Controller
             $stockCount = (integer)$request['total_stock'];
         }
 
+        // Allow stock to be 0 for out-of-stock products
         if ((integer)$request['total_stock'] != $stockCount) {
             $validator->getMessageBag()->add('total_stock', 'Stock calculation mismatch! Expected: ' . $request['total_stock'] . ', Got: ' . $stockCount);
         }
@@ -404,7 +405,7 @@ class ProductController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required',
             'category_id' => 'required',
-            'total_stock' => 'required|numeric|min:1',
+            'total_stock' => 'required|numeric|min:0', // Allow 0 for out-of-stock products
             'price' => 'required|numeric|min:0',
         ], [
             'name.required' => 'Product name is required!',
@@ -518,6 +519,9 @@ class ProductController extends Controller
                 $item['price'] = abs($request['price_' . $sanitizedStr] ?? 0);
                 $item['stock'] = abs($request['stock_' . $sanitizedStr] ?? 0);
 
+                // Log each variant
+                \Log::info('Variant: ' . $str . ' | Sanitized: ' . $sanitizedStr . ' | Stock from request: ' . ($request['stock_' . $sanitizedStr] ?? 'NOT FOUND') . ' | Final stock: ' . $item['stock']);
+
                 if ($request['discount_type'] == 'amount' && $item['price'] <= $request['discount'] ){
                     $validator->getMessageBag()->add('discount_mismatch', 'Discount can not be more or equal to the price. Please change variant '. $item['type'] .' price or change discount amount!');
                 }
@@ -529,6 +533,7 @@ class ProductController extends Controller
             $stockCount = (integer)$request['total_stock'];
         }
 
+        // Allow stock to be 0 for out-of-stock products
         if ((integer)$request['total_stock'] != $stockCount) {
             $validator->getMessageBag()->add('total_stock', 'Stock calculation mismatch! Expected: ' . $request['total_stock'] . ', Got: ' . $stockCount);
         }
@@ -536,6 +541,12 @@ class ProductController extends Controller
         if ($validator->getMessageBag()->count() > 0) {
             return response()->json(['errors' => Helpers::error_processor($validator)]);
         }
+
+        // Log what we're about to save
+        \Log::info('=== SAVING PRODUCT ===');
+        \Log::info('Product ID: ' . $product->id);
+        \Log::info('Total Stock: ' . $request->total_stock);
+        \Log::info('Variations JSON: ' . json_encode($variations));
 
         $product->category_ids = json_encode($category);
         $product->description = $request->description[array_search('en', $request->lang)];
@@ -555,6 +566,11 @@ class ProductController extends Controller
         $product->status = $request->status? $request->status:0;
         $product->weight = $request->weight;
         $product->save();
+
+        // Log what was actually saved
+        \Log::info('=== SAVED TO DATABASE ===');
+        \Log::info('Saved Total Stock: ' . $product->total_stock);
+        \Log::info('Saved Variations: ' . $product->variations);
 
         $product->tags()->sync($tagIds);
 

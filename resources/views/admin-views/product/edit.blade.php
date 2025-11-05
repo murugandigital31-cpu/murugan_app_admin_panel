@@ -274,9 +274,11 @@
                                 <div class="col-sm-6">
                                     <div class="form-group mb-0">
                                         <label class="input-label"
-                                               for="exampleFormControlInput1">{{translate('stock')}}</label>
+                                               for="exampleFormControlInput1">{{translate('stock')}}
+                                               <small class="text-muted">({{translate('0 = Out of Stock')}})</small>
+                                        </label>
                                         <input type="number" min="0" max="100000000" value="{{$product['total_stock']}}" name="total_stock" class="form-control"
-                                               placeholder="{{ translate('Ex : 100') }}">
+                                               placeholder="{{ translate('Ex : 100 or 0 for out of stock') }}">
                                     </div>
                                 </div>
                                 <div class="col-sm-6">
@@ -726,6 +728,14 @@
                 $('input[name="total_stock"]').attr("readonly", false);
             }
         }
+
+        // Call update_qty on page load to calculate initial stock
+        $(document).ready(function() {
+            // Wait a bit for the page to fully load
+            setTimeout(function() {
+                update_qty();
+            }, 500);
+        });
     </script>
 
 @endpush

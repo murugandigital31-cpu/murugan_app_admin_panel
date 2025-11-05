@@ -253,9 +253,11 @@
                                 <div class="col-sm-6">
                                     <div class="form-group mb-0">
                                         <label class="input-label"
-                                            for="exampleFormControlInput1">{{translate('product_stock')}}</label>
+                                            for="exampleFormControlInput1">{{translate('product_stock')}}
+                                            <small class="text-muted">({{translate('0 = Out of Stock')}})</small>
+                                        </label>
                                         <input type="number" min="0" max="100000000" value="0" name="total_stock" class="form-control"
-                                            placeholder="{{ translate('Ex : 100') }}">
+                                            placeholder="{{ translate('Ex : 100 or 0 for out of stock') }}">
                                     </div>
                                 </div>
                                 <div class="col-sm-6">
